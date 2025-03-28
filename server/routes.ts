@@ -8,6 +8,7 @@ import fs from "fs/promises";
 import { existsSync } from "fs";
 import { processAudio, cancelProcessing } from "./audio-processor";
 import { randomUUID } from "crypto";
+import jwt from "jsonwebtoken";
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -274,23 +275,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/segments/:id/audio", isAuthenticated, async (req, res) => {
+  app.get("/api/segments/:id/audio", async (req, res) => {
     try {
-      const segmentId = parseInt(req.params.id);
-      const segment = await storage.getAudioSegmentById(segmentId);
-      
-      if (!segment) {
-        return res.status(404).json({ message: "Segment not found" });
+      // Extract the JWT token from header
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ message: "Authorization header missing" });
       }
       
-      // Verify access rights (simplified for this route)
-      const audioFile = await storage.getAudioFileById(segment.audioFileId);
-      if (!audioFile) {
-        return res.status(404).json({ message: "Associated audio file not found" });
-      }
+      const token = authHeader.split(' ')[1];
       
-      // Serve the audio file
-      res.sendFile(segment.segmentPath, { root: "/" });
+      // Verify token and get user
+      try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_jwt_secret');
+        const user = await storage.getUser((decoded as any).id);
+        if (!user) {
+          return res.status(401).json({ message: "Invalid token: User not found" });
+        }
+        
+        // Proceed with file serving
+        const segmentId = parseInt(req.params.id);
+        const segment = await storage.getAudioSegmentById(segmentId);
+        
+        if (!segment) {
+          return res.status(404).json({ message: "Segment not found" });
+        }
+        
+        // Verify access rights
+        const audioFile = await storage.getAudioFileById(segment.audioFileId);
+        if (!audioFile) {
+          return res.status(404).json({ message: "Associated audio file not found" });
+        }
+        
+        // Check if user can access this segment
+        const canAccess = 
+          user.role === "admin" || 
+          audioFile.uploadedBy === user.id || 
+          segment.assignedTo === user.id ||
+          segment.transcribedBy === user.id ||
+          segment.reviewedBy === user.id;
+        
+        if (!canAccess) {
+          return res.status(403).json({ message: "You don't have access to this segment" });
+        }
+        
+        // Serve the audio file
+        res.sendFile(segment.segmentPath, { root: "/" });
+        
+      } catch (jwtError) {
+        return res.status(401).json({ message: "Invalid token" });
+      }
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

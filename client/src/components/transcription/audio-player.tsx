@@ -109,12 +109,29 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
 
   // Toggle play/pause
   const togglePlayback = () => {
-    if (!audioRef.current) return;
+    if (!audioRef.current) {
+      console.error("Audio element is not available yet");
+      return;
+    }
     
     if (isPlaying) {
       audioRef.current.pause();
     } else {
-      audioRef.current.play();
+      // Handle play with a promise to catch any errors
+      const playPromise = audioRef.current.play();
+      
+      // Modern browsers return a promise from play()
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => {
+            // Playback started successfully
+            console.log("Audio playback started");
+          })
+          .catch(error => {
+            // Playback failed due to a user interaction requirement or other issue
+            console.error("Error playing audio:", error);
+          });
+      }
     }
     
     setIsPlaying(!isPlaying);
