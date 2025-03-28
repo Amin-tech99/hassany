@@ -14,55 +14,68 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
   const [playbackSpeed, setPlaybackSpeed] = useState("1");
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
+  
+  // Get token from localStorage
+  useEffect(() => {
+    const storedToken = localStorage.getItem('token');
+    setToken(storedToken);
+  }, []);
 
   // Initialize audio element
   useEffect(() => {
-    if (!audioUrl) return;
+    if (!audioUrl || !token) return;
     
-    // Create a new XMLHttpRequest to fetch the audio with authorization
-    const xhr = new XMLHttpRequest();
-    xhr.open('GET', audioUrl, true);
+    console.log("Attempting to load audio from:", audioUrl);
+    setLoading(true);
     
-    // Get the JWT token from localStorage
-    const token = localStorage.getItem('authToken');
-    if (token) {
-      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    }
+    console.log("Using token to fetch audio...");
     
-    xhr.responseType = 'blob';
-    xhr.onload = function() {
-      if (xhr.status === 200) {
-        // Create a blob URL from the audio data
-        const blob = new Blob([xhr.response], { type: 'audio/mpeg' });
-        const objectUrl = URL.createObjectURL(blob);
-        
-        // Create and configure the audio element with the blob URL
-        const audio = new Audio(objectUrl);
-        audioRef.current = audio;
-        
-        audio.addEventListener("loadedmetadata", () => {
-          setDuration(audio.duration);
-        });
-        
-        audio.addEventListener("ended", () => {
-          setIsPlaying(false);
-          setProgress(0);
-          setCurrentTime(0);
-          if (onEnded) onEnded();
-        });
-      } else {
-        console.error('Failed to load audio:', xhr.status, xhr.statusText);
+    // Use fetch with proper authentication header
+    fetch(audioUrl, {
+      headers: {
+        'Authorization': `Bearer ${token}`
       }
-    };
-    
-    xhr.onerror = function() {
-      console.error('Error loading audio file');
-    };
-    
-    xhr.send();
+    })
+    .then(response => {
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+      console.log("Audio fetch successful, processing response...");
+      return response.blob();
+    })
+    .then(blob => {
+      // Create a blob URL from the audio data
+      const objectUrl = URL.createObjectURL(blob);
+      console.log("Created blob URL for audio");
+      
+      // Create and configure the audio element
+      const audio = new Audio(objectUrl);
+      audioRef.current = audio;
+      
+      audio.addEventListener("loadedmetadata", () => {
+        console.log("Audio metadata loaded, duration:", audio.duration);
+        setDuration(audio.duration);
+        setLoading(false);
+      });
+      
+      audio.addEventListener("ended", () => {
+        setIsPlaying(false);
+        setProgress(0);
+        setCurrentTime(0);
+        if (onEnded) onEnded();
+      });
+    })
+    .catch(error => {
+      console.error('Error loading audio:', error.message);
+      setError(error.message);
+      setLoading(false);
+    });
     
     return () => {
       if (progressInterval.current) {
@@ -74,7 +87,7 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
         audioRef.current = null;
       }
     };
-  }, [audioUrl, onEnded]);
+  }, [audioUrl, onEnded, token]);
 
   // Update playback speed
   useEffect(() => {
@@ -170,45 +183,53 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
   ];
 
   return (
-    <div className="bg-gray-50 rounded-lg p-4">
-      <div className="flex flex-col space-y-2">
-        <div className="flex items-center space-x-2">
-          {/* Play button with prominent styling */}
+    <div className="bg-gray-100 rounded-lg p-5 shadow-md border border-gray-200">
+      <div className="flex flex-col space-y-3">
+        <div className="flex items-center space-x-4">
+          {/* Play button with more prominent styling */}
           <Button
-            size="sm"
+            size="default"
             variant="default"
-            className="min-w-[36px] h-9 p-2 rounded-full bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 flex items-center justify-center"
+            className="min-w-[48px] h-12 w-12 rounded-full bg-primary hover:bg-primary/90 text-white shadow-md flex items-center justify-center"
             onClick={togglePlayback}
+            title={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? (
-              <PauseIcon className="h-5 w-5" />
+              <PauseIcon className="h-6 w-6" />
             ) : (
-              <PlayIcon className="h-5 w-5" />
+              <PlayIcon className="h-6 w-6" />
             )}
           </Button>
           
-          <div 
-            className="flex-1 bg-gray-200 rounded-full h-2 cursor-pointer"
-            onClick={handleSeek}
-          >
+          <div className="flex-1 flex flex-col space-y-1">
             <div 
-              className="bg-primary-600 h-2 rounded-full" 
-              style={{ width: `${progress}%` }}
-            ></div>
+              className="w-full bg-gray-200 rounded-full h-3 cursor-pointer shadow-inner"
+              onClick={handleSeek}
+            >
+              <div 
+                className="bg-primary h-3 rounded-full transition-all" 
+                style={{ width: `${progress}%` }}
+              ></div>
+            </div>
+            
+            <div className="flex justify-between">
+              <span className="text-sm font-medium text-gray-700">
+                {formatTime(currentTime)}
+              </span>
+              <span className="text-sm font-medium text-gray-700">
+                {formatTime(duration)}
+              </span>
+            </div>
           </div>
-          
-          <span className="text-sm font-medium text-gray-500 min-w-[80px] text-right">
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </span>
         </div>
         
-        <div className="flex items-center justify-end space-x-2">
-          <span className="text-sm text-gray-600">Speed:</span>
+        <div className="flex items-center justify-end space-x-3 mt-1">
+          <span className="text-sm font-medium text-gray-700">Playback Speed:</span>
           <Select
             value={playbackSpeed}
             onValueChange={setPlaybackSpeed}
           >
-            <SelectTrigger className="w-[90px] h-8">
+            <SelectTrigger className="w-[90px] h-9 bg-white">
               <SelectValue placeholder="1x" />
             </SelectTrigger>
             <SelectContent>
@@ -221,6 +242,15 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
           </Select>
         </div>
       </div>
+      
+      {/* Loading or error indicators */}
+      {audioRef.current === null && (
+        <div className={`mt-2 text-sm ${error ? "text-red-600 font-medium" : "text-gray-600"}`}>
+          {!token && "Authentication token not found. Please log in again."}
+          {token && loading && "Loading audio file..."}
+          {token && error && `Error: ${error}`}
+        </div>
+      )}
     </div>
   );
 }
