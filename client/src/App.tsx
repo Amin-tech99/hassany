@@ -18,6 +18,7 @@ function Router() {
       <Route path="/auth" component={AuthPage} />
       <ProtectedRoute path="/" component={DashboardPage} />
       <ProtectedRoute path="/transcriptions" component={TranscriptionsPage} />
+      <ProtectedRoute path="/transcriptions/:id" component={TranscriptionsPage} />
       <ProtectedRoute path="/audio-processing" component={AudioProcessingPage} />
       <ProtectedRoute path="/team" component={TeamManagementPage} adminOnly={true} />
       <ProtectedRoute path="/export" component={ExportDataPage} adminOnly={true} />
