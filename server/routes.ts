@@ -275,57 +275,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/segments/:id/audio", async (req, res) => {
+  app.get("/api/segments/:id/audio", isAuthenticated, async (req, res) => {
     try {
-      // Extract the JWT token from header
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ message: "Authorization header missing" });
+      // At this point, req.user is already set by isAuthenticated middleware
+      const segmentId = parseInt(req.params.id);
+      const segment = await storage.getAudioSegmentById(segmentId);
+      
+      if (!segment) {
+        return res.status(404).json({ message: "Segment not found" });
       }
       
-      const token = authHeader.split(' ')[1];
-      
-      // Verify token and get user
-      try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET || 'default_jwt_secret');
-        const user = await storage.getUser((decoded as any).id);
-        if (!user) {
-          return res.status(401).json({ message: "Invalid token: User not found" });
-        }
-        
-        // Proceed with file serving
-        const segmentId = parseInt(req.params.id);
-        const segment = await storage.getAudioSegmentById(segmentId);
-        
-        if (!segment) {
-          return res.status(404).json({ message: "Segment not found" });
-        }
-        
-        // Verify access rights
-        const audioFile = await storage.getAudioFileById(segment.audioFileId);
-        if (!audioFile) {
-          return res.status(404).json({ message: "Associated audio file not found" });
-        }
-        
-        // Check if user can access this segment
-        const canAccess = 
-          user.role === "admin" || 
-          audioFile.uploadedBy === user.id || 
-          segment.assignedTo === user.id ||
-          segment.transcribedBy === user.id ||
-          segment.reviewedBy === user.id;
-        
-        if (!canAccess) {
-          return res.status(403).json({ message: "You don't have access to this segment" });
-        }
-        
-        // Serve the audio file
-        res.sendFile(segment.segmentPath, { root: "/" });
-        
-      } catch (jwtError) {
-        return res.status(401).json({ message: "Invalid token" });
+      // Verify access rights
+      const audioFile = await storage.getAudioFileById(segment.audioFileId);
+      if (!audioFile) {
+        return res.status(404).json({ message: "Associated audio file not found" });
       }
+      
+      // Check if user can access this segment
+      const canAccess = 
+        req.user!.role === "admin" || 
+        audioFile.uploadedBy === req.user!.id || 
+        segment.assignedTo === req.user!.id ||
+        segment.transcribedBy === req.user!.id ||
+        segment.reviewedBy === req.user!.id;
+      
+      if (!canAccess) {
+        return res.status(403).json({ message: "You don't have access to this segment" });
+      }
+      
+      // Log successful access
+      console.log(`User ${req.user!.username} accessing audio segment ${segmentId}`);
+      
+      // Serve the audio file
+      res.sendFile(segment.segmentPath, { root: "/" });
+      
     } catch (error: any) {
+      console.error(`Error serving audio segment ${req.params.id}:`, error);
       res.status(500).json({ message: error.message });
     }
   });
