@@ -84,8 +84,9 @@ export default function VerificationPage() {
       // Deselect all
       setSelectedTranscriptions([]);
     } else {
-      // Select all
-      setSelectedTranscriptions(transcriptionTasks.map(task => task.id));
+      // Select all - using segment IDs instead of task IDs
+      const segmentIds = transcriptionTasks.map(task => getSegmentIdFromAudioId(task.audioId));
+      setSelectedTranscriptions(segmentIds);
     }
   };
 
@@ -93,9 +94,12 @@ export default function VerificationPage() {
   const batchApproveMutation = useMutation({
     mutationFn: async (ids: number[]) => {
       setIsSubmitting(true);
+      // Add logging to see what IDs are being sent
+      console.log("Sending IDs for batch approval:", ids);
       return apiRequest("POST", "/api/transcriptions/batch-approve", { ids });
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
+      console.log("Batch approval response:", response);
       toast({
         title: "Batch Approval Successful",
         description: `Successfully approved ${selectedTranscriptions.length} transcriptions.`,
@@ -106,6 +110,7 @@ export default function VerificationPage() {
       setIsSubmitting(false);
     },
     onError: (error: Error) => {
+      console.error("Batch approval error:", error);
       toast({
         title: "Batch Approval Failed",
         description: error.message,
@@ -126,7 +131,19 @@ export default function VerificationPage() {
       return;
     }
 
-    batchApproveMutation.mutate(selectedTranscriptions);
+    // Filter out any invalid segment IDs
+    const validIds = selectedTranscriptions.filter(id => id > 0);
+    
+    if (validIds.length === 0) {
+      toast({
+        title: "No Valid Segments",
+        description: "Could not find valid segment IDs in your selection.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    batchApproveMutation.mutate(validIds);
   };
 
   // Format duration in seconds
@@ -136,8 +153,19 @@ export default function VerificationPage() {
 
   // Extract segment ID from audioId string
   const getSegmentIdFromAudioId = (audioId: string): number => {
-    const match = audioId.match(/Segment_(\d+)/);
-    return match ? parseInt(match[1]) : 0;
+    if (!audioId) return 0;
+    
+    try {
+      const match = audioId.match(/Segment_(\d+)/i);
+      if (match && match[1]) {
+        const id = parseInt(match[1], 10);
+        return isNaN(id) ? 0 : id;
+      }
+      return 0;
+    } catch (error) {
+      console.error("Error extracting segment ID from", audioId, error);
+      return 0;
+    }
   };
 
   return (
@@ -182,8 +210,8 @@ export default function VerificationPage() {
                   className="whitespace-nowrap"
                 >
                   <CheckSquare className="mr-2 h-4 w-4" />
-                  {selectedTranscriptions.length > 0 && transcriptionTasks && 
-                   selectedTranscriptions.length === transcriptionTasks.length
+                  {transcriptionTasks && selectedTranscriptions.length > 0 && 
+                   selectedTranscriptions.length >= transcriptionTasks.length
                     ? "Deselect All"
                     : "Select All"}
                 </Button>
@@ -221,7 +249,7 @@ export default function VerificationPage() {
                         checked={
                           transcriptionTasks && 
                           transcriptionTasks.length > 0 && 
-                          selectedTranscriptions.length === transcriptionTasks.length
+                          selectedTranscriptions.length >= transcriptionTasks.length
                         }
                         onCheckedChange={toggleAll}
                         aria-label="Select all"
