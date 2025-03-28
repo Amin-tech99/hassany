@@ -3,6 +3,11 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
+// Retrieve the JWT token from localStorage
+function getAuthToken(): string | null {
+  return localStorage.getItem('auth_token');
+}
+
 interface UploadOptions {
   onSuccess?: () => void;
 }
@@ -26,6 +31,15 @@ export function useAudioProcessor() {
         xhr.open("POST", "/api/audio/upload", true);
         xhr.setRequestHeader("Accept", "application/json");
         
+        // Add Authorization header if token exists
+        const token = getAuthToken();
+        if (token) {
+          xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+          console.log("Adding auth token to upload request");
+        } else {
+          console.warn("No auth token available for upload request");
+        }
+        
         // Track upload progress
         xhr.upload.addEventListener("progress", (event) => {
           if (event.lengthComputable) {
@@ -38,7 +52,19 @@ export function useAudioProcessor() {
           if (xhr.status >= 200 && xhr.status < 300) {
             resolve(JSON.parse(xhr.responseText));
           } else {
-            reject(new Error(xhr.statusText || "Upload failed"));
+            // Try to get more detailed error message from response
+            let errorMessage = "Upload failed";
+            try {
+              if (xhr.responseText) {
+                const response = JSON.parse(xhr.responseText);
+                errorMessage = response.message || xhr.statusText || errorMessage;
+              }
+            } catch (e) {
+              errorMessage = xhr.statusText || errorMessage;
+            }
+            
+            console.error("Upload error:", xhr.status, errorMessage);
+            reject(new Error(errorMessage));
           }
         };
 
