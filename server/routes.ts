@@ -722,11 +722,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let ids: number[] = [];
       
       if (Array.isArray(segmentIds)) {
-        ids = segmentIds.map(id => parseInt(id as string)).filter(id => !isNaN(id));
+        ids = segmentIds.map(id => {
+          // Handle both numeric IDs and "Segment_X" format
+          if (typeof id === 'string' && id.includes('Segment_')) {
+            const match = id.match(/Segment_(\d+)/i);
+            return match && match[1] ? parseInt(match[1], 10) : NaN;
+          }
+          return parseInt(id as string);
+        }).filter(id => !isNaN(id));
       } else if (segmentIds) {
-        const parsedId = parseInt(segmentIds as string);
-        if (!isNaN(parsedId)) {
-          ids = [parsedId];
+        const idStr = segmentIds as string;
+        // Handle both numeric IDs and "Segment_X" format
+        if (idStr.includes('Segment_')) {
+          const match = idStr.match(/Segment_(\d+)/i);
+          if (match && match[1]) {
+            const parsedId = parseInt(match[1], 10);
+            if (!isNaN(parsedId)) {
+              ids = [parsedId];
+            }
+          }
+        } else {
+          const parsedId = parseInt(idStr);
+          if (!isNaN(parsedId)) {
+            ids = [parsedId];
+          }
         }
       }
       
@@ -835,16 +854,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // First check if all segments exist and have valid transcriptions
       // This prevents creating an empty or invalid zip file
       let validSegmentCount = 0;
+      const segmentPaths = {};
       
       for (const id of ids) {
         try {
           // Get the segment
+          console.log(`Checking segment ${id} exists...`);
           const segment = await storage.getAudioSegmentById(id);
           if (!segment) {
             console.log(`Segment ${id} not found`);
             errors.push({ id, error: "Segment not found" });
             continue;
           }
+          
+          // Store segment path for debugging
+          segmentPaths[id] = segment.segmentPath;
           
           // Don't require transcription, just check if the audio file exists
           if (!fs.existsSync(segment.segmentPath)) {
@@ -859,6 +883,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
           errors.push({ id, error: err instanceof Error ? err.message : "Unknown error" });
         }
       }
+      
+      console.log("Valid segments:", validSegmentCount);
+      console.log("Segment paths:", JSON.stringify(segmentPaths, null, 2));
       
       if (validSegmentCount === 0) {
         return res.status(404).json({ 
@@ -921,13 +948,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       for (const id of ids) {
         try {
           // Get the segment
+          console.log(`Looking up segment with ID: ${id}`);
           const segment = await storage.getAudioSegmentById(id);
+          
           if (!segment) {
+            console.error(`Segment ${id} not found in storage`);
             continue; // Already checked above
           }
           
           // Check if the segment audio file exists
+          console.log(`Checking for segment file: ${segment.segmentPath}`);
           if (!fs.existsSync(segment.segmentPath)) {
+            console.error(`Audio file doesn't exist: ${segment.segmentPath}`);
             continue; // Already checked above
           }
           

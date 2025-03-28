@@ -258,11 +258,14 @@ export default function VerificationPage() {
         throw new Error('Authentication failed: Please log in again');
       }
 
+      // Format segment IDs to ensure they're in the correct format
       // Create URL with query parameters for segment IDs
       const queryString = ids.map(id => `id=${id}`).join('&');
       const url = `/api/segments/download-audio?${queryString}`;
 
       try {
+        console.log("Sending request to:", url);
+        
         const response = await fetch(url, {
           method: 'GET',
           headers: {
@@ -333,6 +336,18 @@ export default function VerificationPage() {
     }
   });
 
+  // Format segment ID for API calls - ensuring ID is properly extracted 
+  const formatSegmentId = (id: number | string): number => {
+    if (typeof id === 'number') return id;
+    
+    if (typeof id === 'string' && id.includes('Segment_')) {
+      const match = id.match(/Segment_(\d+)/i);
+      return match && match[1] ? parseInt(match[1], 10) : 0;
+    }
+    
+    return parseInt(id as string) || 0;
+  };
+
   // Handle download audio button click
   const handleDownloadAudio = () => {
     if (selectedTranscriptions.length === 0) {
@@ -344,8 +359,11 @@ export default function VerificationPage() {
       return;
     }
 
-    // Filter out any invalid segment IDs and log what we're sending
-    const validIds = selectedTranscriptions.filter(id => id > 0);
+    // Filter out any invalid segment IDs and ensure proper format
+    const validIds = selectedTranscriptions
+      .filter(id => id > 0)
+      .map(id => formatSegmentId(id));
+    
     console.log("Selected IDs:", selectedTranscriptions);
     console.log("Valid segment IDs for download:", validIds);
     
