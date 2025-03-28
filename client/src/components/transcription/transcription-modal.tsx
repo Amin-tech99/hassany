@@ -297,7 +297,34 @@ export function TranscriptionModal({
           </>
         )}
         
-        <DialogFooter>
+        {/* Quality Review Section Completion Button */}
+        {isReviewer && approvalStatus && !isLoading && (
+          <div className="mt-6 flex justify-center">
+            <Button 
+              onClick={handleSave}
+              disabled={saveTranscriptionMutation.isPending}
+              size="lg"
+              className="w-full max-w-md bg-green-600 hover:bg-green-700 text-white font-bold py-3"
+            >
+              {saveTranscriptionMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  {approvalStatus === "approve" ? (
+                    <>✓ Approve and Complete</>
+                  ) : (
+                    <>↺ Send Back for Revision</>
+                  )}
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+        
+        <DialogFooter className="mt-6">
           <Button
             variant="outline"
             onClick={handleClose}
@@ -305,22 +332,22 @@ export function TranscriptionModal({
           >
             Cancel
           </Button>
-          <Button 
-            onClick={handleSave}
-            disabled={isLoading || saveTranscriptionMutation.isPending}
-            className="bg-primary hover:bg-primary/90"
-          >
-            {saveTranscriptionMutation.isPending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : isReviewer ? (
-              approvalStatus === "approve" ? "Approve & Complete" : "Send for Revision"
-            ) : (
-              "Submit for Review"
-            )}
-          </Button>
+          {!isReviewer && (
+            <Button 
+              onClick={handleSave}
+              disabled={isLoading || saveTranscriptionMutation.isPending}
+              className="bg-primary hover:bg-primary/90"
+            >
+              {saveTranscriptionMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                "Submit for Review"
+              )}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
