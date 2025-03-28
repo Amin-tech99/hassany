@@ -13,13 +13,27 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   try {
+    console.log(`API Request: ${method} ${url}`, data);
+    
     const res = await fetch(url, {
       method,
-      headers: data ? { "Content-Type": "application/json" } : {},
+      headers: {
+        ...(data ? { "Content-Type": "application/json" } : {}),
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        "Pragma": "no-cache",
+        "Expires": "0"
+      },
       body: data ? JSON.stringify(data) : undefined,
       credentials: "include",
       // Prevent caching for auth requests
-      cache: method === "GET" ? "default" : "no-store",
+      cache: "no-store",
+    });
+
+    console.log(`API Response: ${method} ${url}`, { 
+      status: res.status, 
+      statusText: res.statusText,
+      headers: Object.fromEntries(res.headers.entries()),
+      cookies: document.cookie
     });
 
     await throwIfResNotOk(res);
@@ -37,6 +51,8 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     try {
+      console.log(`Query Request: GET ${queryKey[0]}`);
+      
       const res = await fetch(queryKey[0] as string, {
         credentials: "include",
         // Add headers to prevent caching
@@ -49,13 +65,22 @@ export const getQueryFn: <T>(options: {
         cache: "no-store"
       });
 
+      console.log(`Query Response: GET ${queryKey[0]}`, { 
+        status: res.status, 
+        statusText: res.statusText,
+        headers: Object.fromEntries(res.headers.entries()),
+        cookies: document.cookie
+      });
+
       if (unauthorizedBehavior === "returnNull" && res.status === 401) {
         console.log(`${queryKey[0]} returned 401, returning null as configured`);
         return null;
       }
 
       await throwIfResNotOk(res);
-      return await res.json();
+      const data = await res.json();
+      console.log(`Query Data: GET ${queryKey[0]}`, data);
+      return data;
     } catch (error) {
       console.error(`Query error for ${queryKey[0]}:`, error);
       throw error;

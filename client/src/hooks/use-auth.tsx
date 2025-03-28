@@ -32,6 +32,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     queryFn: getQueryFn({ on401: "returnNull" }),
     staleTime: 0, // Always refetch to keep session alive
     refetchInterval: 5000, // Poll every 5 seconds to keep session alive
+    onSettled: (data, error) => {
+      console.log("Auth status:", { user: data, isLoading, error });
+      if (data) {
+        console.log("User is authenticated, redirecting to dashboard");
+      }
+    }
   });
 
   const loginMutation = useMutation({

@@ -32,23 +32,19 @@ async function comparePasswords(supplied: string, stored: string) {
 
 export function setupAuth(app: Express) {
   // Generate a random secret if none is provided
-  const sessionSecret = process.env.SESSION_SECRET || randomBytes(32).toString('hex');
+  const sessionSecret = process.env.SESSION_SECRET || "hassaniya-transcription-secret-key";
   
-  // Define session options with optimal settings for development
+  // Use the session store from our storage implementation
   const sessionSettings: session.SessionOptions = {
-    name: "hassaniya.sid", // Custom session name
+    name: "connect.sid", // Default express-session cookie name
     secret: sessionSecret,
-    resave: true,
-    rolling: true, // Reset expiration on each response
-    saveUninitialized: true,
-    store: new MemoryStore({
-      checkPeriod: 86400000, // prune expired entries every 24h
-    }),
+    resave: false,
+    saveUninitialized: false,
+    store: storage.sessionStore,
     cookie: {
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days for development
+      secure: false, // Allow non-HTTPS
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // Only use secure in production
-      sameSite: 'lax',
       path: '/'
     }
   };
@@ -133,7 +129,7 @@ export function setupAuth(app: Express) {
       // Destroy session to ensure complete logout
       req.session.destroy((destroyErr) => {
         if (destroyErr) return next(destroyErr);
-        res.clearCookie('hassaniya.sid');
+        res.clearCookie('connect.sid');
         res.status(200).json({ message: "Logged out successfully" });
       });
     });
