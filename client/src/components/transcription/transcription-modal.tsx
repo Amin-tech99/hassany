@@ -1,0 +1,293 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
+import { AudioPlayer } from "./audio-player";
+import { apiRequest } from "@/lib/queryClient";
+import { Loader2, Star } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { cn } from "@/lib/utils";
+
+interface TranscriptionModalProps {
+  segmentId: number | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export function TranscriptionModal({
+  segmentId,
+  isOpen,
+  onClose,
+}: TranscriptionModalProps) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
+  const [transcriptionText, setTranscriptionText] = useState("");
+  const [notes, setNotes] = useState("");
+  const [approvalStatus, setApprovalStatus] = useState<"approve" | "needs_revision" | null>(null);
+  const [rating, setRating] = useState<number | null>(null);
+  const [reviewNotes, setReviewNotes] = useState("");
+  
+  const isReviewer = user?.role === "reviewer" || user?.role === "admin";
+  
+  // Fetch transcription data
+  const { data: segmentData, isLoading } = useQuery({
+    queryKey: [`/api/segments/${segmentId}`],
+    enabled: segmentId !== null && isOpen,
+  });
+  
+  // Update local state when segment data changes
+  useEffect(() => {
+    if (segmentData) {
+      setTranscriptionText(segmentData.transcription?.text || "");
+      setNotes(segmentData.transcription?.notes || "");
+      setRating(segmentData.transcription?.rating || null);
+      setReviewNotes(segmentData.transcription?.reviewNotes || "");
+      setApprovalStatus(null);
+    }
+  }, [segmentData]);
+  
+  // Save transcription mutation
+  const saveTranscriptionMutation = useMutation({
+    mutationFn: async () => {
+      if (!segmentId) throw new Error("No segment selected");
+      
+      const payload = {
+        text: transcriptionText,
+        notes,
+        segmentId,
+      };
+      
+      // If user is a reviewer, include review data
+      if (isReviewer && approvalStatus) {
+        Object.assign(payload, {
+          status: approvalStatus === "approve" ? "approved" : "rejected",
+          rating,
+          reviewNotes: approvalStatus === "needs_revision" ? reviewNotes : "",
+        });
+      }
+      
+      return apiRequest("POST", `/api/transcriptions/${segmentId}`, payload);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [`/api/segments/${segmentId}`] });
+      queryClient.invalidateQueries({ queryKey: ["/api/activities/recent"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/transcriptions"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/tasks/summary"] });
+      
+      toast({
+        title: "Transcription saved",
+        description: "Your work has been saved successfully.",
+      });
+      
+      onClose();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to save",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  const handleSave = () => {
+    if (!transcriptionText.trim()) {
+      toast({
+        title: "Transcription required",
+        description: "Please enter a transcription before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (isReviewer && !approvalStatus) {
+      toast({
+        title: "Approval status required",
+        description: "Please approve or request revision before saving.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (isReviewer && approvalStatus === "approve" && rating === null) {
+      toast({
+        title: "Rating required",
+        description: "Please provide a rating before approving.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (isReviewer && approvalStatus === "needs_revision" && !reviewNotes.trim()) {
+      toast({
+        title: "Review notes required",
+        description: "Please provide feedback for the transcriber.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    saveTranscriptionMutation.mutate();
+  };
+  
+  // When closing, reset form state
+  const handleClose = () => {
+    if (saveTranscriptionMutation.isPending) return; // Prevent closing during save
+    
+    setTranscriptionText("");
+    setNotes("");
+    setApprovalStatus(null);
+    setRating(null);
+    setReviewNotes("");
+    onClose();
+  };
+  
+  return (
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="max-w-4xl">
+        <DialogHeader>
+          <DialogTitle>
+            Transcribe Audio Segment: {segmentData?.audioId || "Loading..."}
+          </DialogTitle>
+        </DialogHeader>
+        
+        {isLoading ? (
+          <div className="py-8 flex justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        ) : (
+          <>
+            {/* Audio Player */}
+            <AudioPlayer audioUrl={segmentData?.audioUrl || ""} />
+            
+            {/* Transcription Input */}
+            <div className="mt-4">
+              <Label htmlFor="transcription">Transcription</Label>
+              <Textarea
+                id="transcription"
+                rows={4}
+                placeholder="Type the transcription here..."
+                value={transcriptionText}
+                onChange={(e) => setTranscriptionText(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            
+            {/* Notes */}
+            <div className="mt-4">
+              <Label htmlFor="notes">Notes (optional)</Label>
+              <Textarea
+                id="notes"
+                rows={2}
+                placeholder="Add any notes or comments about this transcription..."
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                className="mt-1"
+              />
+            </div>
+            
+            {/* Quality Review (for reviewers only) */}
+            {isReviewer && (
+              <div className="mt-4 border-t pt-4">
+                <div className="space-y-4">
+                  <h4 className="text-sm font-medium text-gray-700">Quality Review</h4>
+                  
+                  {/* Rating Stars */}
+                  <div className="flex items-center space-x-4">
+                    <span className="text-sm text-gray-500">Accuracy:</span>
+                    <div className="flex items-center">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <button
+                          key={star}
+                          type="button"
+                          onClick={() => setRating(star)}
+                          className="focus:outline-none"
+                        >
+                          <Star
+                            className={cn(
+                              "h-5 w-5",
+                              rating && star <= rating
+                                ? "text-yellow-500 fill-yellow-500"
+                                : "text-gray-300"
+                            )}
+                          />
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  {/* Approval Status */}
+                  <RadioGroup
+                    value={approvalStatus || ""}
+                    onValueChange={(value) => 
+                      setApprovalStatus(value as "approve" | "needs_revision")
+                    }
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="approve" id="approve" />
+                      <Label htmlFor="approve">Approve</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="needs_revision" id="needs-revision" />
+                      <Label htmlFor="needs-revision">Needs Revision</Label>
+                    </div>
+                  </RadioGroup>
+                  
+                  {/* Revision Notes (shown only when "Needs Revision" is selected) */}
+                  {approvalStatus === "needs_revision" && (
+                    <div className="mt-2">
+                      <Label htmlFor="revision-notes">Revision Notes</Label>
+                      <Textarea
+                        id="revision-notes"
+                        rows={2}
+                        placeholder="Provide feedback for the transcriber..."
+                        value={reviewNotes}
+                        onChange={(e) => setReviewNotes(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+        
+        <DialogFooter>
+          <Button
+            variant="outline"
+            onClick={handleClose}
+            disabled={saveTranscriptionMutation.isPending}
+          >
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSave}
+            disabled={isLoading || saveTranscriptionMutation.isPending}
+          >
+            {saveTranscriptionMutation.isPending ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save"
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
