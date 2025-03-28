@@ -345,17 +345,17 @@ export class MemStorage implements IStorage {
     // Get all segments that are assigned to this user or the user is an admin
     const segments = Array.from(this.audioSegments.values())
       .filter(segment => {
+        // Check if user is admin 
+        const user = this.users.get(userId);
+        const isAdmin = user?.role === 'admin';
+        
         // Filter by status if provided
         if (status) {
-          if (status === "assigned" && segment.assignedTo !== userId) {
-            return false;
+          if (status === "assigned") {
+            return segment.assignedTo === userId;
           }
           if (status === "review") {
-            // For review status, show all segments with status "transcribed" (pending review)
-            // Do not filter by userId for admin users
-            const user = this.users.get(userId);
-            const isAdmin = user?.role === 'admin';
-            
+            // For review status, show only segments with status "transcribed" (pending review)
             if (segment.status !== "transcribed") {
               return false;
             }
@@ -367,15 +367,14 @@ export class MemStorage implements IStorage {
             
             return true;
           }
-          if (status === "completed" && segment.status !== "reviewed") {
-            return false;
+          if (status === "completed") {
+            return segment.status === "reviewed";
           }
         }
         
-        // Check if user is admin - for admins, return all segments
-        const user = this.users.get(userId);
-        const isAdmin = user?.role === 'admin';
+        // If no status filter or status doesn't match special cases above
         
+        // For admins, return all segments when no specific filter is applied
         if (isAdmin) {
           return true;
         }
@@ -476,20 +475,36 @@ export class MemStorage implements IStorage {
   // Dashboard operations
   async getTaskSummary(userId: number): Promise<TaskSummary> {
     const segments = Array.from(this.audioSegments.values());
+    const user = this.users.get(userId);
+    const isAdmin = user?.role === 'admin';
     
-    // Count assigned tasks
-    const assigned = segments.filter(s => s.assignedTo === userId).length;
+    // Count assigned tasks (tasks assigned to this user that aren't completed)
+    const assigned = segments.filter(s => 
+      s.assignedTo === userId && 
+      s.status !== "reviewed"
+    ).length;
     
     // Count completed tasks (segments this user has transcribed that are reviewed)
-    const completed = segments.filter(s => 
-      s.transcribedBy === userId && s.status === "reviewed"
-    ).length;
+    const completed = segments.filter(s => {
+      // For admin, show all completed tasks
+      if (isAdmin) {
+        return s.status === "reviewed";
+      }
+      // For regular users, show tasks they've worked on that are completed
+      return (s.transcribedBy === userId || s.reviewedBy === userId) && 
+             s.status === "reviewed";
+    }).length;
     
-    // Count pending review (segments this user can review)
-    const pendingReview = segments.filter(s => 
-      s.status === "transcribed" &&
-      (s.reviewedBy === userId || !s.reviewedBy)
-    ).length;
+    // Count pending review (segments with status "transcribed" that this user can review)
+    const pendingReview = segments.filter(s => {
+      if (s.status !== "transcribed") return false;
+      
+      // For admin, show all pending reviews
+      if (isAdmin) return true;
+      
+      // For reviewers, show segments assigned to them for review
+      return s.reviewedBy === userId;
+    }).length;
     
     return {
       assigned,

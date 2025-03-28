@@ -84,43 +84,61 @@ export function ExportData() {
   // Download export mutation
   const downloadExportMutation = useMutation({
     mutationFn: async (exportId: number) => {
-      // Use a direct fetch with blob response to handle file downloads
-      const response = await fetch(`/api/exports/${exportId}/download`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        throw new Error(`Failed to download: ${errorText}`);
-      }
-
       try {
+        // Get the token from localStorage
+        const token = localStorage.getItem('authToken');
+        if (!token) {
+          throw new Error('Authentication failed: Please log in again');
+        }
+
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/exports/${exportId}/download`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          // Log the error details for debugging
+          const errorText = await response.text();
+          console.error('Download error response:', errorText);
+          throw new Error(`Download failed: ${response.statusText || 'Server error'}`);
+        }
+
         const blob = await response.blob();
-        const filename = response.headers.get("Content-Disposition")?.split("filename=")[1] || "export.json";
         
-        // Create download link
+        // Get filename from Content-Disposition header if available
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = contentDisposition ? filenameRegex.exec(contentDisposition) : null;
+        const filename = matches && matches[1] ? matches[1].replace(/['"]/g, '') : 'export.json';
+        
+        // Create a download link and trigger download
         const url = window.URL.createObjectURL(blob);
-        const link = document.createElement("a");
+        const link = document.createElement('a');
         link.href = url;
-        link.setAttribute("download", filename.replace(/['"]/g, ""));
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
-        link.parentNode?.removeChild(link);
+        
+        // Clean up
         window.URL.revokeObjectURL(url);
+        document.body.removeChild(link);
+        
+        return true;
       } catch (error) {
-        console.error("Download error:", error);
-        throw new Error("Failed to process download");
+        console.error('Download error:', error);
+        throw error;
       }
     },
-    onError: (error: Error) => {
+    onError: (error) => {
       toast({
-        title: "Download failed",
-        description: error.message,
-        variant: "destructive",
+        title: "Download Failed",
+        description: error.message || "Failed to download the export file. Please try again.",
+        variant: "destructive"
       });
-    },
+    }
   });
 
   // Form submission

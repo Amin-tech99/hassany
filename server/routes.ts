@@ -631,13 +631,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Export not found" });
       }
       
+      // Verify path exists
+      const filePath = exportRecord.path;
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ message: "Export file not found on server" });
+      }
+      
       // Add proper headers for download
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename="${exportRecord.filename}"`);
       
-      // Serve the file with absolute path
-      res.sendFile(exportRecord.path, { root: "/" });
+      // Send file using relative path from project root for better cross-platform support
+      const relativePath = path.relative(path.resolve('./'), filePath);
+      res.sendFile(relativePath, { root: './' }, (err) => {
+        if (err) {
+          console.error('Error sending file:', err);
+          res.status(500).json({ message: "Error sending file" });
+        }
+      });
     } catch (error: any) {
+      console.error('Download error:', error);
       res.status(500).json({ message: error.message });
     }
   });
