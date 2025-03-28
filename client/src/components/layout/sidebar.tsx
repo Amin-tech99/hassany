@@ -25,28 +25,28 @@ const navItems: NavItem[] = [
   {
     href: "/",
     label: "Dashboard",
-    icon: <Home className="mr-3 h-5 w-5" />,
+    icon: <Home className="mr-3 h-5 w-5 text-white" />,
   },
   {
     href: "/transcriptions",
     label: "Transcriptions",
-    icon: <FileText className="mr-3 h-5 w-5" />,
+    icon: <FileText className="mr-3 h-5 w-5 text-white" />,
   },
   {
     href: "/audio-processing",
     label: "Audio Processing",
-    icon: <Mic className="mr-3 h-5 w-5" />,
+    icon: <Mic className="mr-3 h-5 w-5 text-white" />,
   },
   {
     href: "/team",
     label: "Team Management",
-    icon: <Users className="mr-3 h-5 w-5" />,
+    icon: <Users className="mr-3 h-5 w-5 text-white" />,
     adminOnly: true,
   },
   {
     href: "/export",
     label: "Export Data",
-    icon: <Download className="mr-3 h-5 w-5" />,
+    icon: <Download className="mr-3 h-5 w-5 text-white" />,
     adminOnly: true,
   },
 ];
@@ -107,11 +107,11 @@ export function Sidebar() {
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        <div className="flex items-center justify-between px-4 h-16 border-b border-primary-700">
-          <h1 className="text-xl font-bold truncate">Hassaniya Transcription</h1>
+        <div className="flex items-center justify-between px-4 h-16 border-b border-primary-700 bg-primary-800">
+          <h1 className="text-xl font-bold truncate text-white">Hassaniya Transcription</h1>
           <button 
             onClick={() => setIsMobileMenuOpen(false)}
-            className="md:hidden rounded-full p-1 hover:bg-primary-800"
+            className="md:hidden rounded-full p-1 hover:bg-primary-700 text-white"
           >
             <X className="w-6 h-6" />
           </button>
@@ -133,10 +133,10 @@ export function Sidebar() {
                 >
                   <a
                     className={cn(
-                      "flex items-center px-4 py-2 text-sm font-medium rounded-md",
+                      "flex items-center px-4 py-3 text-sm font-medium rounded-md",
                       isActive 
-                        ? "bg-primary-700 text-white" 
-                        : "text-primary-100 hover:bg-primary-700 hover:text-white"
+                        ? "bg-primary-700 text-white font-bold" 
+                        : "text-white hover:bg-primary-700 hover:text-white"
                     )}
                   >
                     {item.icon}
@@ -152,13 +152,13 @@ export function Sidebar() {
           <div className="px-4 py-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="h-8 w-8 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium">
+                <div className="h-9 w-9 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium text-base">
                   {userInitials}
                 </div>
               </div>
               <div className="ml-3">
-                <div className="text-sm font-medium text-white">{user.fullName}</div>
-                <div className="text-xs text-primary-200">{getRoleDisplay(user.role)}</div>
+                <div className="text-sm font-semibold text-white">{user.fullName}</div>
+                <div className="text-xs text-white font-medium">{getRoleDisplay(user.role)}</div>
               </div>
               <Button 
                 variant="ghost" 
@@ -168,9 +168,9 @@ export function Sidebar() {
                 disabled={logoutMutation.isPending}
               >
                 {logoutMutation.isPending ? (
-                  <span className="h-5 w-5 animate-spin">⟳</span>
+                  <span className="h-5 w-5 animate-spin text-white">⟳</span>
                 ) : (
-                  <LogOut className="h-5 w-5 text-primary-200" />
+                  <LogOut className="h-5 w-5 text-white" />
                 )}
               </Button>
             </div>
