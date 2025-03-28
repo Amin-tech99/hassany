@@ -22,19 +22,47 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
   useEffect(() => {
     if (!audioUrl) return;
     
-    const audio = new Audio(audioUrl);
-    audioRef.current = audio;
+    // Create a new XMLHttpRequest to fetch the audio with authorization
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', audioUrl, true);
     
-    audio.addEventListener("loadedmetadata", () => {
-      setDuration(audio.duration);
-    });
+    // Get the JWT token from localStorage
+    const token = localStorage.getItem('authToken');
+    if (token) {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    }
     
-    audio.addEventListener("ended", () => {
-      setIsPlaying(false);
-      setProgress(0);
-      setCurrentTime(0);
-      if (onEnded) onEnded();
-    });
+    xhr.responseType = 'blob';
+    xhr.onload = function() {
+      if (xhr.status === 200) {
+        // Create a blob URL from the audio data
+        const blob = new Blob([xhr.response], { type: 'audio/mpeg' });
+        const objectUrl = URL.createObjectURL(blob);
+        
+        // Create and configure the audio element with the blob URL
+        const audio = new Audio(objectUrl);
+        audioRef.current = audio;
+        
+        audio.addEventListener("loadedmetadata", () => {
+          setDuration(audio.duration);
+        });
+        
+        audio.addEventListener("ended", () => {
+          setIsPlaying(false);
+          setProgress(0);
+          setCurrentTime(0);
+          if (onEnded) onEnded();
+        });
+      } else {
+        console.error('Failed to load audio:', xhr.status, xhr.statusText);
+      }
+    };
+    
+    xhr.onerror = function() {
+      console.error('Error loading audio file');
+    };
+    
+    xhr.send();
     
     return () => {
       if (progressInterval.current) {
