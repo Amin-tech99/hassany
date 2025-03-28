@@ -1,5 +1,29 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
+// JWT token storage
+let authToken: string | null = null;
+
+// Set the JWT token for requests
+export function setAuthToken(token: string | null) {
+  console.log("Setting auth token:", token ? "Token provided" : "Token cleared");
+  authToken = token;
+}
+
+// Get authorization headers depending on token presence
+function getAuthHeaders() {
+  const headers: Record<string, string> = {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    "Pragma": "no-cache",
+    "Expires": "0"
+  };
+  
+  if (authToken) {
+    headers["Authorization"] = `Bearer ${authToken}`;
+  }
+  
+  return headers;
+}
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
@@ -15,16 +39,15 @@ export async function apiRequest(
   try {
     console.log(`API Request: ${method} ${url}`, data);
     
+    const headers = getAuthHeaders();
+    if (data) {
+      headers["Content-Type"] = "application/json";
+    }
+    
     const res = await fetch(url, {
       method,
-      headers: {
-        ...(data ? { "Content-Type": "application/json" } : {}),
-        "Cache-Control": "no-cache, no-store, must-revalidate",
-        "Pragma": "no-cache",
-        "Expires": "0"
-      },
+      headers,
       body: data ? JSON.stringify(data) : undefined,
-      credentials: "include",
       // Prevent caching for auth requests
       cache: "no-store",
     });
@@ -33,7 +56,7 @@ export async function apiRequest(
       status: res.status, 
       statusText: res.statusText,
       headers: Object.fromEntries(res.headers.entries()),
-      cookies: document.cookie
+      token: authToken ? "Present" : "None"
     });
 
     await throwIfResNotOk(res);
@@ -51,16 +74,10 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     try {
-      console.log(`Query Request: GET ${queryKey[0]}`);
+      console.log(`Query Request: GET ${queryKey[0]}`, { token: authToken ? "Present" : "None" });
       
       const res = await fetch(queryKey[0] as string, {
-        credentials: "include",
-        // Add headers to prevent caching
-        headers: {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          "Pragma": "no-cache",
-          "Expires": "0"
-        },
+        headers: getAuthHeaders(),
         // Ensure we're not using cache for auth endpoints
         cache: "no-store"
       });
@@ -69,7 +86,7 @@ export const getQueryFn: <T>(options: {
         status: res.status, 
         statusText: res.statusText,
         headers: Object.fromEntries(res.headers.entries()),
-        cookies: document.cookie
+        token: authToken ? "Present" : "None"
       });
 
       if (unauthorizedBehavior === "returnNull" && res.status === 401) {
@@ -78,9 +95,17 @@ export const getQueryFn: <T>(options: {
       }
 
       await throwIfResNotOk(res);
-      const data = await res.json();
-      console.log(`Query Data: GET ${queryKey[0]}`, data);
-      return data;
+      
+      // Check for empty response
+      const contentType = res.headers.get("content-type");
+      if (contentType && contentType.includes("application/json")) {
+        const data = await res.json();
+        console.log(`Query Data: GET ${queryKey[0]}`, data);
+        return data;
+      } else {
+        console.log(`Query Data: GET ${queryKey[0]} - No JSON content`);
+        return null;
+      }
     } catch (error) {
       console.error(`Query error for ${queryKey[0]}:`, error);
       throw error;
