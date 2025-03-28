@@ -387,6 +387,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: error.message });
     }
   });
+  
+  // Get all users (for admin)
+  app.get("/api/users", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const users = await storage.getAllUsers();
+      // Remove sensitive information like passwords
+      const sanitizedUsers = users.map(user => ({
+        id: user.id,
+        username: user.username,
+        fullName: user.fullName,
+        role: user.role,
+        createdAt: user.createdAt
+      }));
+      res.json(sanitizedUsers);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Get available segments for assignment
+  app.get("/api/admin/available-segments", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const segments = Array.from(await storage.getAvailableSegments());
+      res.json(segments);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+  
+  // Assign segment to transcriber
+  app.post("/api/admin/assign-segment", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { segmentId, userId } = req.body;
+      
+      if (!segmentId || !userId) {
+        return res.status(400).json({ message: "segmentId and userId are required" });
+      }
+      
+      const segment = await storage.getAudioSegmentById(segmentId);
+      if (!segment) {
+        return res.status(404).json({ message: "Segment not found" });
+      }
+      
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Only allow assignment if segment status is 'available'
+      if (segment.status !== "available") {
+        return res.status(400).json({ message: "Segment is not available for assignment" });
+      }
+      
+      // Update segment
+      const updatedSegment = await storage.updateAudioSegment(segmentId, {
+        assignedTo: userId,
+        status: "assigned"
+      });
+      
+      res.status(200).json(updatedSegment);
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
 
   // Export routes
   app.post("/api/exports", isAuthenticated, isAdmin, async (req, res) => {
