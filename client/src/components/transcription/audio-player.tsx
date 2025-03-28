@@ -173,10 +173,11 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
     <div className="bg-gray-50 rounded-lg p-4">
       <div className="flex flex-col space-y-2">
         <div className="flex items-center space-x-2">
+          {/* Play button with prominent styling */}
           <Button
             size="sm"
             variant="default"
-            className="p-2 rounded-full bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500"
+            className="min-w-[36px] h-9 p-2 rounded-full bg-primary-600 text-white hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500 flex items-center justify-center"
             onClick={togglePlayback}
           >
             {isPlaying ? (
@@ -196,7 +197,7 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
             ></div>
           </div>
           
-          <span className="text-sm font-medium text-gray-500">
+          <span className="text-sm font-medium text-gray-500 min-w-[80px] text-right">
             {formatTime(currentTime)} / {formatTime(duration)}
           </span>
         </div>
