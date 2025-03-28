@@ -10,8 +10,7 @@ import {
   LogOut, 
   X,
   Menu,
-  CheckSquare,
-  Settings
+  CheckSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -41,7 +40,8 @@ const navItems: NavItem[] = [
     href: "/audio-processing",
     label: "Audio Processing",
     icon: <Mic className="mr-3 h-5 w-5" />,
-    color: "text-yellow-400"
+    color: "text-yellow-400",
+    adminOnly: true
   },
   {
     href: "/team",
@@ -63,12 +63,6 @@ const navItems: NavItem[] = [
     icon: <Download className="mr-3 h-5 w-5" />,
     adminOnly: true,
     color: "text-pink-400"
-  },
-  {
-    href: "/settings",
-    label: "Settings",
-    icon: <Settings className="mr-3 h-5 w-5" />,
-    color: "text-gray-400"
   }
 ];
 

@@ -637,15 +637,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Export file not found on server" });
       }
       
-      // Read the file content
-      const fileContent = await fs.promises.readFile(filePath, 'utf8');
-      
-      // Set proper headers for download
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename="${exportRecord.filename}"`);
-      
-      // Send the file content as response
-      res.send(fileContent);
+      // Use res.download for proper file download handling
+      return res.download(filePath, exportRecord.filename, (err) => {
+        if (err) {
+          console.error('Download error:', err);
+          // Only respond if headers haven't been sent yet
+          if (!res.headersSent) {
+            res.status(500).json({ message: err.message });
+          }
+        }
+      });
     } catch (error: any) {
       console.error('Download error:', error);
       res.status(500).json({ message: error.message });

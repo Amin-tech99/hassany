@@ -11,7 +11,7 @@ export function ProtectedRoute({
   allowedRoles = [],
 }: {
   path: string;
-  component: () => React.JSX.Element;
+  component: () => React.ReactNode;
   adminOnly?: boolean;
   allowedRoles?: string[];
 }) {

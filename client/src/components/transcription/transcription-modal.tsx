@@ -4,7 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { AudioPlayer } from "./audio-player";
 import { apiRequest } from "@/lib/queryClient";
-import { Loader2, Star } from "lucide-react";
+import { Loader2, Star, ArrowLeft } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -189,10 +189,21 @@ export function TranscriptionModal({
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-4xl">
-        <DialogHeader>
-          <DialogTitle>
-            Transcribe Audio Segment: {segmentData?.audioId || "Loading..."}
-          </DialogTitle>
+        <DialogHeader className="flex flex-row items-center justify-between">
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              className="mr-2" 
+              onClick={handleClose}
+              title="Return to transcription list"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <DialogTitle>
+              Transcribe Audio Segment: {segmentData?.audioId || "Loading..."}
+            </DialogTitle>
+          </div>
         </DialogHeader>
         
         {isLoading ? (
