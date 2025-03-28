@@ -21,10 +21,16 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
   
-  // Get token from localStorage
+  // Get token from localStorage - using correct token name 'auth_token'
   useEffect(() => {
-    const storedToken = localStorage.getItem('token');
+    const storedToken = localStorage.getItem('auth_token');
     setToken(storedToken);
+    
+    if (storedToken) {
+      console.log("Audio player: Auth token found");
+    } else {
+      console.log("Audio player: No auth token found in localStorage");
+    }
   }, []);
 
   // Initialize audio element
