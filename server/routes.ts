@@ -822,22 +822,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/segments/download-audio", isAuthenticated, async (req, res) => {
     try {
       // Get segment IDs from query parameters
-      const segmentIds = req.query.id;
-      let ids: number[] = [];
-      
-      if (Array.isArray(segmentIds)) {
-        ids = segmentIds.map(id => parseInt(id as string)).filter(id => !isNaN(id));
-      } else if (segmentIds) {
-        const parsedId = parseInt(segmentIds as string);
-        if (!isNaN(parsedId)) {
-          ids = [parsedId];
-        }
+      const segmentIdParams = req.query.id;
+      let rawIds: (string | number)[] = [];
+
+      if (Array.isArray(segmentIdParams)) {
+        rawIds = segmentIdParams.map(id => id as string | number);
+      } else if (segmentIdParams) {
+        rawIds = [segmentIdParams as string | number];
       }
       
-      console.log(`Attempting to download audio segments with IDs: ${ids.join(', ')}`);
+      console.log("Raw segment ID parameters received:", rawIds);
+      
+      // Parse IDs robustly, handling both number and "Segment_X" format
+      const ids: number[] = rawIds.map(idParam => {
+        if (typeof idParam === 'number') return idParam;
+        if (typeof idParam === 'string') {
+          if (idParam.includes('Segment_')) {
+            const match = idParam.match(/Segment_(\d+)/i);
+            return match && match[1] ? parseInt(match[1], 10) : NaN;
+          }
+          // Try parsing as a plain number string
+          const parsedNum = parseInt(idParam, 10);
+          return isNaN(parsedNum) ? NaN : parsedNum;
+        }
+        return NaN; // Should not happen, but handles unexpected types
+      }).filter(id => !isNaN(id) && id > 0); // Filter out invalid and non-positive IDs
+      
+      console.log(`Parsed valid numeric segment IDs for download: ${ids.join(', ')}`);
       
       if (ids.length === 0) {
-        return res.status(400).json({ message: "No valid segment IDs provided" });
+        return res.status(400).json({ message: "No valid segment IDs provided after parsing" });
       }
       
       // Get segments data
@@ -851,64 +865,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Creating zip file at: ${zipFilePath}`);
       
-      // First check if all segments exist and have valid transcriptions
+      // First check if all segments exist and have valid audio files
       // This prevents creating an empty or invalid zip file
       let validSegmentCount = 0;
       const segmentPaths: Record<number, string> = {};
       
       // Log received IDs for debugging
-      console.log("Raw segment IDs received:", ids);
+      console.log("Checking existence for parsed numeric IDs:", ids);
       
       for (const id of ids) {
         try {
           // Get the segment
           console.log(`Checking segment ${id} exists...`);
           
-          // Try to get the segment directly
+          // Try to get the segment directly using the parsed numeric ID
           let segment = await storage.getAudioSegmentById(id);
+          console.log(`Direct lookup result for ID ${id}:`, segment ? `Found (Path: ${segment.segmentPath})` : 'Not Found');
           
-          // If not found by direct ID, try different approaches
+          // If not found by direct ID, try the fallback
           if (!segment) {
-            console.log(`Segment with direct ID ${id} not found, checking alternative ways...`);
+            console.log(`Segment with direct ID ${id} not found, attempting fallback lookup...`);
             
-            // Look for the segment in a different way - by getting audio files and their segments
             try {
-              // Get all audio files and check their segments
               const audioFiles = await storage.getAudioFiles(0, true); // Get all files
-              
-              console.log(`Checking segments in ${audioFiles.length} audio files`);
+              console.log(`Fallback: Checking segments in ${audioFiles.length} audio files for ID ${id}`);
               
               for (const file of audioFiles) {
                 if (file.segments && Array.isArray(file.segments)) {
-                  // Search through segments in this file
                   const foundSegment = file.segments.find((s: any) => s.id === id);
                   if (foundSegment) {
                     segment = foundSegment;
-                    console.log(`Found segment with ID ${id} in audio file ${file.id}`);
-                    break;
+                    console.log(`Fallback success: Found segment with ID ${id} in audio file ${file.id}`);
+                    break; // Found it, stop searching this file's segments
                   }
                 }
               }
+              if (!segment) {
+                 console.log(`Fallback failed: Segment ID ${id} not found in any audio file segments.`);
+              }
             } catch (lookupErr) {
-              console.error("Error during alternative segment lookup:", lookupErr);
+              console.error(`Fallback Error: Error during alternative segment lookup for ID ${id}:`, lookupErr);
             }
           }
           
           if (!segment) {
-            console.log(`Segment ${id} not found after all attempts`);
+            console.log(`Final result: Segment ${id} not found after all attempts`);
             errors.push({ id, error: "Segment not found" });
             continue;
           }
           
           // Store segment path for debugging
           segmentPaths[id] = segment.segmentPath;
+          console.log(`Segment ${id} found. Path: ${segment.segmentPath}`);
           
-          // Don't require transcription, just check if the audio file exists
+          // Check if the audio file exists
           if (!fs.existsSync(segment.segmentPath)) {
-            console.log(`Audio file not found for segment ${id}: ${segment.segmentPath}`);
+            console.log(`Audio file check failed for segment ${id}: Path ${segment.segmentPath} does not exist.`);
             errors.push({ id, error: "Audio file not found on server" });
             continue;
           }
+          console.log(`Audio file check passed for segment ${id}: Path ${segment.segmentPath} exists.`);
           
           validSegmentCount++;
         } catch (err) {
