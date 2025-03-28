@@ -31,11 +31,15 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
-  const sessionSecret = process.env.SESSION_SECRET || "hassaniya-transcription-platform-secret";
+  // Generate a random secret if none is provided
+  const sessionSecret = process.env.SESSION_SECRET || randomBytes(32).toString('hex');
   
+  // Define session options with optimal settings for development
   const sessionSettings: session.SessionOptions = {
+    name: "hassaniya.sid", // Custom session name
     secret: sessionSecret,
     resave: true,
+    rolling: true, // Reset expiration on each response
     saveUninitialized: true,
     store: new MemoryStore({
       checkPeriod: 86400000, // prune expired entries every 24h
@@ -43,8 +47,9 @@ export function setupAuth(app: Express) {
     cookie: {
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
       httpOnly: true,
-      secure: false, // Set to true in production with HTTPS
-      sameSite: 'lax'
+      secure: process.env.NODE_ENV === 'production', // Only use secure in production
+      sameSite: 'lax',
+      path: '/'
     }
   };
 
@@ -125,26 +130,61 @@ export function setupAuth(app: Express) {
   app.post("/api/logout", (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
-      res.sendStatus(200);
+      // Destroy session to ensure complete logout
+      req.session.destroy((destroyErr) => {
+        if (destroyErr) return next(destroyErr);
+        res.clearCookie('hassaniya.sid');
+        res.status(200).json({ message: "Logged out successfully" });
+      });
     });
   });
 
-  app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    res.json(req.user);
+  app.get("/api/user", (req, res, next) => {
+    try {
+      // Check if the user is authenticated and the session is valid
+      if (!req.isAuthenticated() || !req.user) {
+        return res.status(401).json({ message: "Unauthorized: You must log in to access this resource" });
+      }
+      // Refresh session expiration time on each check
+      req.session.touch();
+      // Explicitly save the session
+      req.session.save((err) => {
+        if (err) return next(err);
+        // Return user data without password
+        const userWithoutPassword = { ...req.user };
+        delete userWithoutPassword.password;
+        res.json(userWithoutPassword);
+      });
+    } catch (error) {
+      next(error);
+    }
   });
 }
 
-export function isAuthenticated(req: Express.Request, res: Express.Response, next: Express.NextFunction) {
-  if (req.isAuthenticated()) {
-    return next();
+export function isAuthenticated(req: any, res: any, next: any) {
+  if (req.isAuthenticated() && req.user) {
+    // Touch and save session to extend validity
+    req.session.touch();
+    req.session.save((err: any) => {
+      if (err) return next(err);
+      return next();
+    });
+  } else {
+    res.status(401).json({ message: "Unauthorized: You must log in to access this resource" });
   }
-  res.status(401).json({ message: "Unauthorized" });
 }
 
-export function isAdmin(req: Express.Request, res: Express.Response, next: Express.NextFunction) {
-  if (req.isAuthenticated() && req.user.role === "admin") {
-    return next();
+export function isAdmin(req: any, res: any, next: any) {
+  if (req.isAuthenticated() && req.user && req.user.role === "admin") {
+    // Touch and save session to extend validity
+    req.session.touch();
+    req.session.save((err: any) => {
+      if (err) return next(err);
+      return next();
+    });
+  } else if (!req.isAuthenticated() || !req.user) {
+    res.status(401).json({ message: "Unauthorized: You must log in to access this resource" });
+  } else {
+    res.status(403).json({ message: "Forbidden: Admin access required" });
   }
-  res.status(403).json({ message: "Forbidden: Admin access required" });
 }
