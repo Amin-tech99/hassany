@@ -308,14 +308,17 @@ export function TranscriptionModal({
           <Button 
             onClick={handleSave}
             disabled={isLoading || saveTranscriptionMutation.isPending}
+            className="bg-primary hover:bg-primary/90"
           >
             {saveTranscriptionMutation.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Saving...
               </>
+            ) : isReviewer ? (
+              approvalStatus === "approve" ? "Approve & Complete" : "Send for Revision"
             ) : (
-              "Save"
+              "Submit for Review"
             )}
           </Button>
         </DialogFooter>

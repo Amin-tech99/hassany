@@ -1,10 +1,13 @@
-import type { Express } from "express";
+import express, { type Request, Response, NextFunction } from "express";
+import { registerRoutes } from "./routes";
+import { setupVite, serveStatic, log } from "./vite";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
 import multer from "multer";
 import path from "path";
-import fs from "fs/promises";
+import fs from "fs";
+import * as fsPromises from "fs/promises";
 import { existsSync } from "fs";
 import { processAudio, cancelProcessing } from "./audio-processor";
 import { randomUUID } from "crypto";
@@ -18,13 +21,13 @@ const exportsDir = path.join(uploadsDir, "exports");
 async function ensureDirectoriesExist() {
   try {
     if (!existsSync(uploadsDir)) {
-      await fs.mkdir(uploadsDir, { recursive: true });
+      await fsPromises.mkdir(uploadsDir, { recursive: true });
     }
     if (!existsSync(segmentsDir)) {
-      await fs.mkdir(segmentsDir, { recursive: true });
+      await fsPromises.mkdir(segmentsDir, { recursive: true });
     }
     if (!existsSync(exportsDir)) {
-      await fs.mkdir(exportsDir, { recursive: true });
+      await fsPromises.mkdir(exportsDir, { recursive: true });
     }
   } catch (error) {
     console.error("Error creating directories:", error);
@@ -62,7 +65,7 @@ const upload = multer({
   },
 });
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export async function registerRoutes(app: express.Express): Promise<Server> {
   // Initialize directories
   await ensureDirectoriesExist();
 
@@ -586,10 +589,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Write to file
-      await fs.writeFile(filePath, JSON.stringify(exportData, null, 2));
+      await fsPromises.writeFile(filePath, JSON.stringify(exportData, null, 2));
       
       // Calculate file size
-      const stats = await fs.stat(filePath);
+      const stats = await fsPromises.stat(filePath);
       
       // Create export record in database
       const exportRecord = await storage.createExport({
@@ -630,13 +633,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Export not found" });
       }
       
-      // Serve the file
-      res.download(exportRecord.path, exportRecord.filename);
+      // Add proper headers for download
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="${exportRecord.filename}"`);
+      
+      // Serve the file with absolute path
+      res.sendFile(exportRecord.path, { root: "/" });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
 
-  const httpServer = createServer(app);
-  return httpServer;
+  return createServer(app);
 }
