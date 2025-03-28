@@ -262,41 +262,58 @@ export default function VerificationPage() {
       const queryString = ids.map(id => `id=${id}`).join('&');
       const url = `/api/segments/download-audio?${queryString}`;
 
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
-        credentials: 'include'
-      });
+      try {
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          credentials: 'include'
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Download error response:', errorText);
-        throw new Error(`Download failed: ${response.statusText || 'Server error'}`);
+        if (!response.ok) {
+          let errorMessage = `Download failed: ${response.statusText || 'Server error'}`;
+          
+          try {
+            const errorData = await response.json();
+            if (errorData && errorData.message) {
+              errorMessage = errorData.message;
+            }
+            console.error('Download error response:', errorData);
+          } catch (parseError) {
+            // If response is not JSON, try to get text
+            const errorText = await response.text();
+            console.error('Download error text response:', errorText);
+          }
+          
+          throw new Error(errorMessage);
+        }
+
+        const blob = await response.blob();
+        
+        // Get filename from Content-Disposition header if available
+        const contentDisposition = response.headers.get('Content-Disposition');
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = contentDisposition ? filenameRegex.exec(contentDisposition) : null;
+        const filename = matches && matches[1] ? matches[1].replace(/['"]/g, '') : 'audio_segments.zip';
+        
+        // Create a download link and trigger download
+        const url2 = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url2;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        
+        // Clean up
+        window.URL.revokeObjectURL(url2);
+        document.body.removeChild(link);
+        
+        return true;
+      } catch (error) {
+        console.error('Download error:', error);
+        throw error;
       }
-
-      const blob = await response.blob();
-      
-      // Get filename from Content-Disposition header if available
-      const contentDisposition = response.headers.get('Content-Disposition');
-      const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
-      const matches = contentDisposition ? filenameRegex.exec(contentDisposition) : null;
-      const filename = matches && matches[1] ? matches[1].replace(/['"]/g, '') : 'audio_segments.zip';
-      
-      // Create a download link and trigger download
-      const url2 = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url2;
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      
-      // Clean up
-      window.URL.revokeObjectURL(url2);
-      document.body.removeChild(link);
-      
-      return true;
     },
     onSuccess: () => {
       toast({
@@ -309,7 +326,7 @@ export default function VerificationPage() {
       console.error("Download audio error:", error);
       toast({
         title: "Download Failed",
-        description: error.message,
+        description: error.message || "Failed to download audio segments. Please try again.",
         variant: "destructive",
       });
       setIsDownloadingAudio(false);

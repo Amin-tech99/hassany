@@ -815,18 +815,74 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
+      console.log(`Attempting to download audio segments with IDs: ${ids.join(', ')}`);
+      
       if (ids.length === 0) {
         return res.status(400).json({ message: "No valid segment IDs provided" });
       }
       
       // Get segments data
-      const segmentsData = [];
-      const errors = [];
+      const segmentsData: { id: number; filename: string }[] = [];
+      const errors: { id: number; error: string }[] = [];
       
       // Create a timestamp for the zip filename
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const zipFilename = `audio_segments_${timestamp}.zip`;
       const zipFilePath = path.join(exportsDir, zipFilename);
+      
+      console.log(`Creating zip file at: ${zipFilePath}`);
+      
+      // First check if all segments exist and have valid transcriptions
+      // This prevents creating an empty or invalid zip file
+      let validSegmentCount = 0;
+      
+      for (const id of ids) {
+        try {
+          // Get the segment
+          const segment = await storage.getAudioSegmentById(id);
+          if (!segment) {
+            console.log(`Segment ${id} not found`);
+            errors.push({ id, error: "Segment not found" });
+            continue;
+          }
+          
+          // Check if segment has approved transcription
+          const transcription = await storage.getTranscriptionBySegmentId(id);
+          if (!transcription) {
+            console.log(`Segment ${id} has no transcription`);
+            errors.push({ id, error: "Transcription not found for this segment" });
+            continue;
+          }
+          
+          // For this feature, allow downloading even if not approved
+          // if (transcription.status !== "approved") {
+          //   console.log(`Segment ${id} transcription not approved: ${transcription.status}`);
+          //   errors.push({ id, error: "Segment does not have an approved transcription" });
+          //   continue;
+          // }
+          
+          // Check if the segment audio file exists
+          if (!fs.existsSync(segment.segmentPath)) {
+            console.log(`Audio file not found for segment ${id}: ${segment.segmentPath}`);
+            errors.push({ id, error: "Audio file not found on server" });
+            continue;
+          }
+          
+          validSegmentCount++;
+        } catch (err) {
+          console.error(`Error checking segment ${id}:`, err);
+          errors.push({ id, error: err instanceof Error ? err.message : "Unknown error" });
+        }
+      }
+      
+      if (validSegmentCount === 0) {
+        return res.status(404).json({ 
+          message: "No valid audio segments found for the provided IDs",
+          errors: errors.length > 0 ? errors : undefined
+        });
+      }
+      
+      console.log(`Found ${validSegmentCount} valid segments to include in zip`);
       
       // Create a write stream for the zip file
       const output = fs.createWriteStream(zipFilePath);
@@ -837,6 +893,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set up event listeners
       output.on('close', async () => {
         try {
+          console.log(`Zip file created successfully. Size: ${archive.pointer()} bytes`);
           // Send the zip file as download
           res.download(zipFilePath, zipFilename, (err) => {
             if (err) {
@@ -858,10 +915,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
+      archive.on('warning', (err: Error) => {
+        console.warn('Zip warning:', err);
+        // Don't fail on warnings
+      });
+      
       archive.on('error', (err: Error) => {
         console.error('Zip creation error:', err);
         if (!res.headersSent) {
-          res.status(500).json({ message: 'Error creating zip file' });
+          res.status(500).json({ message: 'Error creating zip file: ' + err.message });
         }
       });
       
@@ -874,22 +936,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get the segment
           const segment = await storage.getAudioSegmentById(id);
           if (!segment) {
-            errors.push({ id, error: "Segment not found" });
-            continue;
+            continue; // Already checked above
           }
           
-          // Check if segment has approved transcription
+          // Get transcription
           const transcription = await storage.getTranscriptionBySegmentId(id);
-          if (!transcription || transcription.status !== "approved") {
-            errors.push({ id, error: "Segment does not have an approved transcription" });
-            continue;
+          if (!transcription) {
+            continue; // Already checked above
           }
           
           // Check if the segment audio file exists
           if (!fs.existsSync(segment.segmentPath)) {
-            errors.push({ id, error: "Audio file not found on server" });
-            continue;
+            continue; // Already checked above
           }
+          
+          console.log(`Adding segment ${id} to zip: ${segment.segmentPath}`);
           
           // Add file to archive with a meaningful name
           const audioFilename = `Segment_${segment.id}.wav`;
@@ -901,17 +962,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             filename: audioFilename
           });
         } catch (err) {
-          errors.push({ id, error: err instanceof Error ? err.message : "Unknown error" });
+          console.error(`Error adding segment ${id} to zip:`, err);
+          // Skip this segment but continue with others
         }
       }
       
-      // Check if we found any segments
+      // Check if we found any segments to add
       if (segmentsData.length === 0) {
         archive.abort(); // Cancel the archive operation
         output.end();    // Close the output stream
         
         return res.status(404).json({ 
-          message: "No approved audio segments found for the provided IDs",
+          message: "Failed to add any audio segments to the zip file",
           errors: errors.length > 0 ? errors : undefined
         });
       }
@@ -935,7 +997,7 @@ ${segmentsData.map(s => `- Segment_${s.id}.wav`).join('\n')}
       
     } catch (error: any) {
       console.error('Download error:', error);
-      res.status(500).json({ message: error.message });
+      res.status(500).json({ message: error.message || 'Server error creating download' });
     }
   });
 
