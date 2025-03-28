@@ -1,6 +1,4 @@
-import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import type { Express, Request, Response, NextFunction } from "express"; // Import types only
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated, isAdmin } from "./auth";
@@ -65,7 +63,7 @@ const upload = multer({
   },
 });
 
-export async function registerRoutes(app: express.Express): Promise<Server> {
+export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize directories
   await ensureDirectoriesExist();
 

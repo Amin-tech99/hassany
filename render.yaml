@@ -2,10 +2,24 @@ services:
   - type: web
     name: hassaniya-transcriber
     env: node
-    buildCommand: apt-get update && apt-get install -y ffmpeg && npm install && npm run build
+    runtime: node
+    region: ohio  # US region for better latency
+    nodeVersion: 18.x
+    buildCommand: npm install && npm run build
     startCommand: npm start
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PORT
+        value: "10000"
+    healthCheckPath: /api/user
+    plan: starter
+    scaling:
+      minInstances: 1
+      maxInstances: 1
+    disk:
+      name: uploads
+      mountPath: /opt/render/project/src/uploads
+      sizeGB: 1
     packages:
       - ffmpeg 
