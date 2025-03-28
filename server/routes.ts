@@ -713,5 +713,90 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Add transcription download endpoint
+  app.get("/api/transcriptions/download", isAuthenticated, async (req, res) => {
+    try {
+      // Get segment IDs from query parameters
+      const segmentIds = req.query.id;
+      let ids: number[] = [];
+      
+      if (Array.isArray(segmentIds)) {
+        ids = segmentIds.map(id => parseInt(id as string)).filter(id => !isNaN(id));
+      } else if (segmentIds) {
+        const parsedId = parseInt(segmentIds as string);
+        if (!isNaN(parsedId)) {
+          ids = [parsedId];
+        }
+      }
+      
+      if (ids.length === 0) {
+        return res.status(400).json({ message: "No valid segment IDs provided" });
+      }
+      
+      // Get transcriptions for each segment
+      const transcriptionsData = [];
+      const errors = [];
+      
+      for (const id of ids) {
+        try {
+          // Get the segment
+          const segment = await storage.getAudioSegmentById(id);
+          if (!segment) {
+            errors.push({ id, error: "Segment not found" });
+            continue;
+          }
+          
+          // Get transcription for this segment
+          const transcription = await storage.getTranscriptionBySegmentId(id);
+          
+          if (!transcription) {
+            errors.push({ id, error: "Transcription not found for this segment" });
+            continue;
+          }
+          
+          // Format the data for downloading
+          transcriptionsData.push({
+            id: transcription.id,
+            segmentId: segment.id,
+            text: transcription.text,
+            audioId: `Segment_${segment.id}`,
+            duration: segment.duration,
+            startTime: segment.startTime,
+            endTime: segment.endTime,
+            status: transcription.status,
+            createdAt: transcription.createdAt,
+            updatedAt: transcription.updatedAt
+          });
+        } catch (err) {
+          errors.push({ id, error: err instanceof Error ? err.message : "Unknown error" });
+        }
+      }
+      
+      if (transcriptionsData.length === 0) {
+        return res.status(404).json({ 
+          message: "No transcriptions found for the provided segment IDs",
+          errors: errors.length > 0 ? errors : undefined
+        });
+      }
+      
+      // Create JSON content
+      const jsonContent = JSON.stringify(transcriptionsData, null, 2);
+      
+      // Set download headers
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const filename = `transcriptions_${timestamp}.json`;
+      
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      
+      // Send the JSON content as response
+      res.send(jsonContent);
+      
+    } catch (error: any) {
+      console.error('Download error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return createServer(app);
 }

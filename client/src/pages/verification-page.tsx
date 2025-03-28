@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle, Filter, CheckSquare } from "lucide-react";
+import { Loader2, CheckCircle, Filter, CheckSquare, Download } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -37,6 +37,7 @@ export default function VerificationPage() {
   const [selectedTranscriptions, setSelectedTranscriptions] = useState<number[]>([]);
   const [statusFilter, setStatusFilter] = useState<string>("transcribed");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -146,6 +147,103 @@ export default function VerificationPage() {
     batchApproveMutation.mutate(validIds);
   };
 
+  // Download selected transcriptions
+  const downloadSelectedMutation = useMutation({
+    mutationFn: async (ids: number[]) => {
+      setIsDownloading(true);
+      // Add logging to see what IDs are being sent
+      console.log("Downloading transcriptions with IDs:", ids);
+      
+      // Get the token from localStorage
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('Authentication failed: Please log in again');
+      }
+
+      // Create URL with query parameters for segment IDs
+      const queryString = ids.map(id => `id=${id}`).join('&');
+      const url = `/api/transcriptions/download?${queryString}`;
+
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Download error response:', errorText);
+        throw new Error(`Download failed: ${response.statusText || 'Server error'}`);
+      }
+
+      const blob = await response.blob();
+      
+      // Get filename from Content-Disposition header if available
+      const contentDisposition = response.headers.get('Content-Disposition');
+      const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+      const matches = contentDisposition ? filenameRegex.exec(contentDisposition) : null;
+      const filename = matches && matches[1] ? matches[1].replace(/['"]/g, '') : 'segments.json';
+      
+      // Create a download link and trigger download
+      const url2 = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url2;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      window.URL.revokeObjectURL(url2);
+      document.body.removeChild(link);
+      
+      return true;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Download Successful",
+        description: "Transcriptions have been downloaded in JSON format.",
+      });
+      setIsDownloading(false);
+    },
+    onError: (error: Error) => {
+      console.error("Download error:", error);
+      toast({
+        title: "Download Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+      setIsDownloading(false);
+    }
+  });
+
+  // Handle download button click
+  const handleDownload = () => {
+    if (selectedTranscriptions.length === 0) {
+      toast({
+        title: "No Transcriptions Selected",
+        description: "Please select at least one transcription to download.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Filter out any invalid segment IDs
+    const validIds = selectedTranscriptions.filter(id => id > 0);
+    
+    if (validIds.length === 0) {
+      toast({
+        title: "No Valid Segments",
+        description: "Could not find valid segment IDs in your selection.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    downloadSelectedMutation.mutate(validIds);
+  };
+
   // Format duration in seconds
   const formatDuration = (durationInMs: number) => {
     return `${Math.round(durationInMs / 1000)}s`;
@@ -174,14 +272,14 @@ export default function VerificationPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-semibold text-gray-900">Batch Verification</h1>
           <p className="mt-2 text-sm text-gray-700">
-            Select multiple transcriptions to approve them all at once without needing to rate them individually.
+            Select multiple transcriptions to approve them all at once or download them in JSON format.
           </p>
         </div>
 
         <Card className="mb-6">
           <CardHeader className="pb-3">
             <CardTitle>Verification Tools</CardTitle>
-            <CardDescription>Filter and select transcriptions for batch approval</CardDescription>
+            <CardDescription>Filter, select, approve and download transcriptions</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-4 flex-wrap">
@@ -228,6 +326,20 @@ export default function VerificationPage() {
                     <CheckCircle className="mr-2 h-4 w-4" />
                   )}
                   Approve Selected ({selectedTranscriptions.length})
+                </Button>
+
+                <Button 
+                  onClick={handleDownload}
+                  disabled={selectedTranscriptions.length === 0 || isDownloading}
+                  className="whitespace-nowrap bg-blue-600 hover:bg-blue-700"
+                  size="sm"
+                >
+                  {isDownloading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="mr-2 h-4 w-4" />
+                  )}
+                  Download JSON
                 </Button>
               </div>
             </div>
