@@ -86,12 +86,12 @@ export function ExportData() {
     mutationFn: async (exportId: number) => {
       try {
         // Get the token from localStorage
-        const token = localStorage.getItem('authToken');
+        const token = localStorage.getItem('auth_token');
         if (!token) {
           throw new Error('Authentication failed: Please log in again');
         }
 
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/api/exports/${exportId}/download`, {
+        const response = await fetch(`/api/exports/${exportId}/download`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`
