@@ -90,10 +90,10 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile Header */}
-      <div className="sticky top-0 z-10 md:hidden bg-primary-600 flex items-center h-16 px-4">
+      <div className="sticky top-0 z-10 md:hidden bg-slate-900 flex items-center h-16 px-4">
         <button 
           onClick={() => setIsMobileMenuOpen(true)} 
-          className="text-white focus:outline-none"
+          className="text-white hover:bg-slate-700 rounded p-1 focus:outline-none"
         >
           <Menu className="h-6 w-6" />
         </button>
@@ -103,15 +103,15 @@ export function Sidebar() {
       {/* Sidebar Container */}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 w-64 bg-primary-900 text-white transition-all duration-300 z-20",
+          "fixed inset-y-0 left-0 w-64 bg-slate-800 text-white transition-all duration-300 z-20",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        <div className="flex items-center justify-between px-4 h-16 border-b border-primary-700 bg-primary-800">
+        <div className="flex items-center justify-between px-4 h-16 border-b border-slate-700 bg-slate-900">
           <h1 className="text-xl font-bold truncate text-white">Hassaniya Transcription</h1>
           <button 
             onClick={() => setIsMobileMenuOpen(false)}
-            className="md:hidden rounded-full p-1 hover:bg-primary-700 text-white"
+            className="md:hidden rounded-full p-1 hover:bg-slate-700 text-white"
           >
             <X className="w-6 h-6" />
           </button>
@@ -135,8 +135,8 @@ export function Sidebar() {
                     className={cn(
                       "flex items-center px-4 py-3 text-sm font-medium rounded-md",
                       isActive 
-                        ? "bg-primary-700 text-white font-bold" 
-                        : "text-white hover:bg-primary-700 hover:text-white"
+                        ? "bg-slate-600 text-white font-bold" 
+                        : "text-white hover:bg-slate-700 hover:text-white"
                     )}
                   >
                     {item.icon}
@@ -148,11 +148,11 @@ export function Sidebar() {
           </div>
         </nav>
         
-        <div className="absolute bottom-0 w-full border-t border-primary-700">
+        <div className="absolute bottom-0 w-full border-t border-slate-700 bg-slate-900">
           <div className="px-4 py-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="h-9 w-9 rounded-full bg-primary-600 flex items-center justify-center text-white font-medium text-base">
+                <div className="h-9 w-9 rounded-full bg-slate-600 flex items-center justify-center text-white font-medium text-base">
                   {userInitials}
                 </div>
               </div>
@@ -163,7 +163,7 @@ export function Sidebar() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="ml-auto rounded hover:bg-primary-800 p-1" 
+                className="ml-auto rounded hover:bg-slate-700 p-1" 
                 onClick={handleLogout}
                 disabled={logoutMutation.isPending}
               >
