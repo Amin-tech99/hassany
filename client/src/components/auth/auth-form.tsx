@@ -48,13 +48,29 @@ export function AuthForm() {
     },
   });
 
-  // Submit handlers
+  // Submit handlers with debugging
   const onLoginSubmit = (values: z.infer<typeof loginSchema>) => {
-    loginMutation.mutate(values);
+    console.log("Login attempt with:", values);
+    loginMutation.mutate(values, {
+      onSuccess: (data) => {
+        console.log("Login successful, user data:", data);
+      },
+      onError: (error) => {
+        console.error("Login error:", error);
+      }
+    });
   };
 
   const onRegisterSubmit = (values: z.infer<typeof registerSchema>) => {
-    registerMutation.mutate(values);
+    console.log("Registration attempt with:", values);
+    registerMutation.mutate(values, {
+      onSuccess: (data) => {
+        console.log("Registration successful, user data:", data);
+      },
+      onError: (error) => {
+        console.error("Registration error:", error);
+      }
+    });
   };
 
   return (

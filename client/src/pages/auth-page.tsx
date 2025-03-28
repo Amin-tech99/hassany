@@ -1,12 +1,24 @@
 import { useAuth } from "@/hooks/use-auth";
 import { AuthForm } from "@/components/auth/auth-form";
 import { Redirect } from "wouter";
+import { useEffect } from "react";
+import { queryClient } from "@/lib/queryClient";
 
 export default function AuthPage() {
-  const { user, isLoading } = useAuth();
-
+  const { user, isLoading, error } = useAuth();
+  
+  // Log authentication status for debugging
+  console.log("Auth status:", { user, isLoading, error });
+  
+  // Force refetch on auth page to ensure correct state
+  useEffect(() => {
+    // Invalidate user query when auth page loads
+    queryClient.invalidateQueries({ queryKey: ["/api/user"] });
+  }, []);
+  
   // Redirect to dashboard if already logged in
   if (user && !isLoading) {
+    console.log("User is authenticated, redirecting to dashboard");
     return <Redirect to="/" />;
   }
 
