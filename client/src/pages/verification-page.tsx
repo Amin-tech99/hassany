@@ -344,8 +344,10 @@ export default function VerificationPage() {
       return;
     }
 
-    // Filter out any invalid segment IDs
+    // Filter out any invalid segment IDs and log what we're sending
     const validIds = selectedTranscriptions.filter(id => id > 0);
+    console.log("Selected IDs:", selectedTranscriptions);
+    console.log("Valid segment IDs for download:", validIds);
     
     if (validIds.length === 0) {
       toast({
@@ -355,6 +357,12 @@ export default function VerificationPage() {
       });
       return;
     }
+    
+    // Let user know we're processing
+    toast({
+      title: "Processing Download",
+      description: `Preparing ${validIds.length} audio segments for download...`,
+    });
     
     downloadAudioMutation.mutate(validIds);
   };

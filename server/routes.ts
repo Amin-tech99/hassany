@@ -846,22 +846,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             continue;
           }
           
-          // Check if segment has approved transcription
-          const transcription = await storage.getTranscriptionBySegmentId(id);
-          if (!transcription) {
-            console.log(`Segment ${id} has no transcription`);
-            errors.push({ id, error: "Transcription not found for this segment" });
-            continue;
-          }
-          
-          // For this feature, allow downloading even if not approved
-          // if (transcription.status !== "approved") {
-          //   console.log(`Segment ${id} transcription not approved: ${transcription.status}`);
-          //   errors.push({ id, error: "Segment does not have an approved transcription" });
-          //   continue;
-          // }
-          
-          // Check if the segment audio file exists
+          // Don't require transcription, just check if the audio file exists
           if (!fs.existsSync(segment.segmentPath)) {
             console.log(`Audio file not found for segment ${id}: ${segment.segmentPath}`);
             errors.push({ id, error: "Audio file not found on server" });
@@ -903,9 +888,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
               }
             }
             // Remove the temporary zip file after sending
-            fs.unlink(zipFilePath, (unlinkErr: NodeJS.ErrnoException | null) => {
-              if (unlinkErr) console.error('Error removing temp zip file:', unlinkErr);
-            });
+            setTimeout(() => {
+              fs.unlink(zipFilePath, (unlinkErr: NodeJS.ErrnoException | null) => {
+                if (unlinkErr) console.error('Error removing temp zip file:', unlinkErr);
+              });
+            }, 5000); // Give a 5 second delay to ensure download starts
           });
         } catch (err) {
           console.error('Error sending zip file:', err);
@@ -936,12 +923,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Get the segment
           const segment = await storage.getAudioSegmentById(id);
           if (!segment) {
-            continue; // Already checked above
-          }
-          
-          // Get transcription
-          const transcription = await storage.getTranscriptionBySegmentId(id);
-          if (!transcription) {
             continue; // Already checked above
           }
           
