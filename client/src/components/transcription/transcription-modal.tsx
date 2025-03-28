@@ -63,11 +63,15 @@ export function TranscriptionModal({
     mutationFn: async () => {
       if (!segmentId) throw new Error("No segment selected");
       
-      const payload = {
+      const payload: any = {
         text: transcriptionText,
         notes,
-        segmentId,
       };
+      
+      // For transcribers submitting work (not reviewers)
+      if (!isReviewer) {
+        payload.status = "pending_review";
+      }
       
       // If user is a reviewer, include review data
       if (isReviewer && approvalStatus) {
@@ -76,21 +80,36 @@ export function TranscriptionModal({
           rating,
           reviewNotes: approvalStatus === "needs_revision" ? reviewNotes : "",
         });
+        
+        // Log the review action for debugging
+        console.log(`Reviewer submitting: status=${payload.status}, rating=${payload.rating}`);
       }
       
-      return apiRequest("POST", `/api/transcriptions/${segmentId}`, payload);
+      const response = await apiRequest("POST", `/api/transcriptions/${segmentId}`, payload);
+      return response;
     },
     onSuccess: () => {
+      // Invalidate all relevant queries to refresh the data
       queryClient.invalidateQueries({ queryKey: [`/api/segments/${segmentId}`] });
       queryClient.invalidateQueries({ queryKey: ["/api/activities/recent"] });
       queryClient.invalidateQueries({ queryKey: ["/api/transcriptions"] });
       queryClient.invalidateQueries({ queryKey: ["/api/tasks/summary"] });
       
-      toast({
-        title: "Transcription saved",
-        description: "Your work has been saved successfully.",
-      });
+      // Show different success messages based on action
+      let title = "Transcription saved";
+      let description = "Your work has been saved successfully.";
       
+      if (isReviewer && approvalStatus) {
+        if (approvalStatus === "approve") {
+          title = "Transcription approved";
+          description = "This transcription has been approved and marked as completed.";
+        } else {
+          title = "Revision requested";
+          description = "This transcription has been sent back to the transcriber for revision.";
+        }
+      }
+      
+      toast({ title, description });
       onClose();
     },
     onError: (error: Error) => {

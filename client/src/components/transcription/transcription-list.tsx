@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +24,7 @@ interface TranscriptionTask {
 export function TranscriptionList() {
   const [location, setLocation] = useLocation();
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const queryClient = useQueryClient();
 
   // Extract status from URL if present
   const searchParams = new URLSearchParams(location.split("?")[1]);
@@ -49,6 +50,11 @@ export function TranscriptionList() {
     } else {
       setLocation(`/transcriptions?status=${value}`);
     }
+    
+    // Force refresh data when filter changes
+    queryClient.invalidateQueries({ 
+      queryKey: [`/api/transcriptions${value !== "all" ? `?status=${value}` : ""}`]
+    });
   };
 
   // Format duration in seconds to "Xs" format
@@ -103,7 +109,12 @@ export function TranscriptionList() {
 
   // Open transcription task
   const openTranscriptionTask = (taskId: number) => {
-    setLocation(`/transcriptions/${taskId}`);
+    // Force a navigation to update the route and pass the segment ID
+    setLocation('/transcriptions');
+    // We need to use a small timeout to ensure the navigation completes before redirecting to the task
+    setTimeout(() => {
+      setLocation(`/transcriptions/${taskId}`);
+    }, 10);
   };
 
   return (
