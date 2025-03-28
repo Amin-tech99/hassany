@@ -637,20 +637,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Export file not found on server" });
       }
       
-      // Add proper headers for download
+      // Read the file content
+      const fileContent = await fs.promises.readFile(filePath, 'utf8');
+      
+      // Set proper headers for download
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Content-Disposition', `attachment; filename="${exportRecord.filename}"`);
       
-      // Send file using relative path from project root for better cross-platform support
-      const relativePath = path.relative(path.resolve('./'), filePath);
-      res.sendFile(relativePath, { root: './' }, (err) => {
-        if (err) {
-          console.error('Error sending file:', err);
-          res.status(500).json({ message: "Error sending file" });
-        }
-      });
+      // Send the file content as response
+      res.send(fileContent);
     } catch (error: any) {
       console.error('Download error:', error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Add batch approval endpoint
+  app.post("/api/transcriptions/batch-approve", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { ids } = req.body;
+      
+      if (!ids || !Array.isArray(ids) || ids.length === 0) {
+        return res.status(400).json({ message: "No valid transcription IDs provided" });
+      }
+      
+      const results = [];
+      const errors = [];
+      
+      // Process each transcription
+      for (const id of ids) {
+        try {
+          // Get the segment
+          const segment = await storage.getAudioSegmentById(id);
+          if (!segment) {
+            errors.push({ id, error: "Segment not found" });
+            continue;
+          }
+          
+          // Get or create a transcription for this segment
+          let transcription = await storage.getTranscriptionBySegmentId(id);
+          
+          if (!transcription) {
+            errors.push({ id, error: "Transcription not found for this segment" });
+            continue;
+          }
+          
+          // Update transcription status to approved
+          const updatedTranscription = await storage.updateTranscription(transcription.id, {
+            status: "approved",
+            reviewedBy: req.user!.id,
+            reviewNotes: "Batch approved",
+            rating: 5 // Default 5 star rating for batch approvals
+          });
+          
+          // Update segment status to reviewed
+          const updatedSegment = await storage.updateAudioSegment(id, {
+            status: "reviewed",
+            reviewedBy: req.user!.id
+          });
+          
+          results.push({ id, status: "approved" });
+        } catch (err) {
+          errors.push({ id, error: err instanceof Error ? err.message : "Unknown error" });
+        }
+      }
+      
+      res.status(200).json({
+        success: results.length,
+        errors: errors.length > 0 ? errors : undefined,
+        results
+      });
+    } catch (error: any) {
       res.status(500).json({ message: error.message });
     }
   });
