@@ -134,6 +134,12 @@ export default function VerificationPage() {
     return `${Math.round(durationInMs / 1000)}s`;
   };
 
+  // Extract segment ID from audioId string
+  const getSegmentIdFromAudioId = (audioId: string): number => {
+    const match = audioId.match(/Segment_(\d+)/);
+    return match ? parseInt(match[1]) : 0;
+  };
+
   return (
     <MainLayout>
       <div className="mx-auto px-4 sm:px-6 md:px-8">
@@ -237,46 +243,49 @@ export default function VerificationPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {transcriptionTasks && transcriptionTasks.length > 0 ? (
-                    transcriptionTasks.map((task) => (
-                      <tr 
-                        key={task.id}
-                        className={cn(
-                          "hover:bg-gray-50 cursor-pointer",
-                          selectedTranscriptions.includes(task.id) && "bg-primary-50"
-                        )}
-                        onClick={() => toggleSelection(task.id)}
-                      >
-                        <td className="pl-6 py-4 whitespace-nowrap">
-                          <Checkbox 
-                            checked={selectedTranscriptions.includes(task.id)}
-                            onCheckedChange={() => toggleSelection(task.id)}
-                            aria-label={`Select transcription ${task.id}`}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {task.audioId}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {formatDuration(task.duration)}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {task.assignedTo}
-                        </td>
-                        <td className="px-3 py-4 whitespace-nowrap">
-                          <span className={cn(
-                            "px-2 inline-flex text-xs leading-5 font-semibold rounded-full",
-                            task.status === "transcribed" && "bg-yellow-100 text-yellow-800",
-                            task.status === "assigned" && "bg-blue-100 text-blue-800",
-                            task.status === "reviewed" && "bg-green-100 text-green-800"
-                          )}>
-                            {task.status === "transcribed" ? "Pending Review" :
-                             task.status === "assigned" ? "In Progress" :
-                             task.status === "reviewed" ? "Completed" : task.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))
+                    transcriptionTasks.map((task) => {
+                      const segmentId = getSegmentIdFromAudioId(task.audioId);
+                      return (
+                        <tr 
+                          key={task.id}
+                          className={cn(
+                            "hover:bg-gray-50 cursor-pointer",
+                            selectedTranscriptions.includes(segmentId) && "bg-primary-50"
+                          )}
+                          onClick={() => toggleSelection(segmentId)}
+                        >
+                          <td className="pl-6 py-4 whitespace-nowrap">
+                            <Checkbox 
+                              checked={selectedTranscriptions.includes(segmentId)}
+                              onCheckedChange={() => toggleSelection(segmentId)}
+                              aria-label={`Select transcription ${task.id}`}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {task.audioId}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {formatDuration(task.duration)}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {task.assignedTo}
+                          </td>
+                          <td className="px-3 py-4 whitespace-nowrap">
+                            <span className={cn(
+                              "px-2 inline-flex text-xs leading-5 font-semibold rounded-full",
+                              task.status === "transcribed" && "bg-yellow-100 text-yellow-800",
+                              task.status === "assigned" && "bg-blue-100 text-blue-800",
+                              task.status === "reviewed" && "bg-green-100 text-green-800"
+                            )}>
+                              {task.status === "transcribed" ? "Pending Review" :
+                               task.status === "assigned" ? "In Progress" :
+                               task.status === "reviewed" ? "Completed" : task.status}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
                   ) : (
                     <tr>
                       <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500">
