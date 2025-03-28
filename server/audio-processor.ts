@@ -24,6 +24,15 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
     // Create processed directory if it doesn't exist
     await fs.mkdir(segmentsDir, { recursive: true });
     
+    // Check if the original file exists and is readable
+    try {
+      await fs.access(audioFile.originalPath, fs.constants.R_OK);
+      console.log(`Original file exists and is readable: ${audioFile.originalPath}`);
+    } catch (error) {
+      console.error(`Cannot access original file: ${audioFile.originalPath}`);
+      throw new Error(`Original file access error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+    
     // Verify FFMPEG is installed and working
     try {
       console.log(`Checking FFMPEG installation...`);
@@ -56,6 +65,17 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
       const fileSegmentsDir = path.join(segmentsDir, `file_${audioFile.id}`);
       await fs.mkdir(fileSegmentsDir, { recursive: true });
       
+      // Verify the segments directory is writable
+      try {
+        const testFile = path.join(fileSegmentsDir, 'test.txt');
+        await fs.writeFile(testFile, 'test');
+        await fs.unlink(testFile);
+        console.log(`Output directory is writable: ${fileSegmentsDir}`);
+      } catch (error) {
+        console.error(`Output directory is not writable: ${fileSegmentsDir}`);
+        throw new Error(`Directory permission error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+      
       // Update audio file with processed path
       await storage.updateAudioFile(audioFile.id, {
         processedPath: fileSegmentsDir,
@@ -73,7 +93,7 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
         const segmentPath = path.join(fileSegmentsDir, `segment_${i + 1}.mp3`);
         
         // Use ffmpeg to extract segment and remove silence
-        const ffmpegCommand = `ffmpeg -y -i "${audioFile.originalPath}" -ss ${startTime} -t 10 -af silenceremove=start_periods=1:start_duration=1:start_threshold=-50dB:detection=peak,aformat=dblp,areverse,silenceremove=start_periods=1:start_duration=1:start_threshold=-50dB:detection=peak,aformat=dblp,areverse "${segmentPath}"`;
+        const ffmpegCommand = `ffmpeg -y -i "${audioFile.originalPath}" -ss ${startTime} -t 10 -c:a mp3 -q:a 2 "${segmentPath}"`;
         console.log(`Running ffmpeg command for segment ${i+1}: ${ffmpegCommand}`);
         
         try {
