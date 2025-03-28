@@ -24,76 +24,100 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
     // Create processed directory if it doesn't exist
     await fs.mkdir(segmentsDir, { recursive: true });
     
-    // Get audio duration using ffprobe
-    const durationCommand = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioFile.originalPath}"`;
-    const { stdout: durationOutput } = await execAsync(durationCommand);
-    const duration = parseFloat(durationOutput.trim()) * 1000; // Convert to milliseconds
-    
-    // Update audio file with duration
-    await storage.updateAudioFile(audioFile.id, {
-      duration: Math.round(duration),
-    });
-    
-    // Split audio into 10-second segments
-    const segmentLength = 10000; // 10 seconds in milliseconds
-    const numberOfSegments = Math.ceil(duration / segmentLength);
-    
-    // Create a directory for this file's segments
-    const fileSegmentsDir = path.join(segmentsDir, `file_${audioFile.id}`);
-    await fs.mkdir(fileSegmentsDir, { recursive: true });
-    
-    // Update audio file with processed path
-    await storage.updateAudioFile(audioFile.id, {
-      processedPath: fileSegmentsDir,
-    });
-    
-    // Process each segment
-    for (let i = 0; i < numberOfSegments; i++) {
-      // Check if processing was cancelled
-      if (!processingFiles.get(audioFile.id)) {
-        console.log(`Processing of file ${audioFile.id} was cancelled.`);
-        return;
-      }
-      
-      const startTime = i * segmentLength / 1000; // In seconds for ffmpeg
-      const segmentPath = path.join(fileSegmentsDir, `segment_${i + 1}.mp3`);
-      
-      // Use ffmpeg to extract segment and remove silence
-      const ffmpegCommand = `ffmpeg -y -i "${audioFile.originalPath}" -ss ${startTime} -t 10 -af silenceremove=start_periods=1:start_duration=1:start_threshold=-50dB:detection=peak,aformat=dblp,areverse,silenceremove=start_periods=1:start_duration=1:start_threshold=-50dB:detection=peak,aformat=dblp,areverse "${segmentPath}"`;
-      
-      await execAsync(ffmpegCommand);
-      
-      // Get segment duration
-      const segDurationCommand = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${segmentPath}"`;
-      const { stdout: segDurationOutput } = await execAsync(segDurationCommand);
-      const segmentDuration = parseFloat(segDurationOutput.trim()) * 1000; // Convert to milliseconds
-      
-      // Create segment in database
-      const segmentData: InsertAudioSegment = {
-        audioFileId: audioFile.id,
-        segmentPath,
-        startTime: Math.round(startTime * 1000), // Convert back to milliseconds
-        endTime: Math.round(startTime * 1000 + segmentDuration),
-        duration: Math.round(segmentDuration),
-        status: "available",
-        assignedTo: null,
-        transcribedBy: null,
-        reviewedBy: null,
-      };
-      
-      await storage.createAudioSegment(segmentData);
-      
-      // Update audio file with number of segments processed so far
-      await storage.updateAudioFile(audioFile.id, {
-        segments: i + 1,
-      });
+    // Verify FFMPEG is installed and working
+    try {
+      console.log(`Checking FFMPEG installation...`);
+      const { stdout: ffmpegVersion } = await execAsync('ffmpeg -version');
+      console.log(`FFMPEG version: ${ffmpegVersion.split('\n')[0]}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error(`FFMPEG not found or not working: ${errorMessage}`);
+      throw new Error(`FFMPEG installation issue: ${errorMessage}`);
     }
     
-    // Mark file as processed
-    await storage.updateAudioFileStatus(audioFile.id, "processed");
-    processingFiles.delete(audioFile.id);
+    // Get audio duration using ffprobe
+    const durationCommand = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioFile.originalPath}"`;
+    console.log(`Running duration command: ${durationCommand}`);
     
-    console.log(`Successfully processed audio file ${audioFile.id} into ${numberOfSegments} segments.`);
+    try {
+      const { stdout: durationOutput } = await execAsync(durationCommand);
+      const duration = parseFloat(durationOutput.trim()) * 1000; // Convert to milliseconds
+      
+      // Update audio file with duration
+      await storage.updateAudioFile(audioFile.id, {
+        duration: Math.round(duration),
+      });
+      
+      // Split audio into 10-second segments
+      const segmentLength = 10000; // 10 seconds in milliseconds
+      const numberOfSegments = Math.ceil(duration / segmentLength);
+      
+      // Create a directory for this file's segments
+      const fileSegmentsDir = path.join(segmentsDir, `file_${audioFile.id}`);
+      await fs.mkdir(fileSegmentsDir, { recursive: true });
+      
+      // Update audio file with processed path
+      await storage.updateAudioFile(audioFile.id, {
+        processedPath: fileSegmentsDir,
+      });
+      
+      // Process each segment
+      for (let i = 0; i < numberOfSegments; i++) {
+        // Check if processing was cancelled
+        if (!processingFiles.get(audioFile.id)) {
+          console.log(`Processing of file ${audioFile.id} was cancelled.`);
+          return;
+        }
+        
+        const startTime = i * segmentLength / 1000; // In seconds for ffmpeg
+        const segmentPath = path.join(fileSegmentsDir, `segment_${i + 1}.mp3`);
+        
+        // Use ffmpeg to extract segment and remove silence
+        const ffmpegCommand = `ffmpeg -y -i "${audioFile.originalPath}" -ss ${startTime} -t 10 -af silenceremove=start_periods=1:start_duration=1:start_threshold=-50dB:detection=peak,aformat=dblp,areverse,silenceremove=start_periods=1:start_duration=1:start_threshold=-50dB:detection=peak,aformat=dblp,areverse "${segmentPath}"`;
+        console.log(`Running ffmpeg command for segment ${i+1}: ${ffmpegCommand}`);
+        
+        try {
+          await execAsync(ffmpegCommand);
+          
+          // Get segment duration
+          const segDurationCommand = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${segmentPath}"`;
+          const { stdout: segDurationOutput } = await execAsync(segDurationCommand);
+          const segmentDuration = parseFloat(segDurationOutput.trim()) * 1000; // Convert to milliseconds
+          
+          // Create segment in database
+          const segmentData: InsertAudioSegment = {
+            audioFileId: audioFile.id,
+            segmentPath,
+            startTime: Math.round(startTime * 1000), // Convert back to milliseconds
+            endTime: Math.round(startTime * 1000 + segmentDuration),
+            duration: Math.round(segmentDuration),
+            status: "available",
+            assignedTo: null,
+            transcribedBy: null,
+            reviewedBy: null,
+          };
+          
+          await storage.createAudioSegment(segmentData);
+          
+          // Update audio file with number of segments processed so far
+          await storage.updateAudioFile(audioFile.id, {
+            segments: i + 1,
+          });
+        } catch (segmentError) {
+          console.error(`Error processing segment ${i+1}: ${segmentError}`);
+          throw segmentError;
+        }
+      }
+      
+      // Mark file as processed
+      await storage.updateAudioFileStatus(audioFile.id, "processed");
+      processingFiles.delete(audioFile.id);
+      
+      console.log(`Successfully processed audio file ${audioFile.id} into ${numberOfSegments} segments.`);
+    } catch (durationError) {
+      console.error(`Error getting audio duration: ${durationError}`);
+      throw durationError;
+    }
   } catch (error) {
     console.error(`Error processing audio file ${audioFile.id}:`, error);
     
