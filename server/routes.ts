@@ -854,15 +854,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // First check if all segments exist and have valid transcriptions
       // This prevents creating an empty or invalid zip file
       let validSegmentCount = 0;
-      const segmentPaths = {};
+      const segmentPaths: Record<number, string> = {};
+      
+      // Log received IDs for debugging
+      console.log("Raw segment IDs received:", ids);
       
       for (const id of ids) {
         try {
           // Get the segment
           console.log(`Checking segment ${id} exists...`);
-          const segment = await storage.getAudioSegmentById(id);
+          
+          // Try to get the segment directly
+          let segment = await storage.getAudioSegmentById(id);
+          
+          // If not found by direct ID, try different approaches
           if (!segment) {
-            console.log(`Segment ${id} not found`);
+            console.log(`Segment with direct ID ${id} not found, checking alternative ways...`);
+            
+            // Look for the segment in a different way - by getting audio files and their segments
+            try {
+              // Get all audio files and check their segments
+              const audioFiles = await storage.getAudioFiles(0, true); // Get all files
+              
+              console.log(`Checking segments in ${audioFiles.length} audio files`);
+              
+              for (const file of audioFiles) {
+                if (file.segments && Array.isArray(file.segments)) {
+                  // Search through segments in this file
+                  const foundSegment = file.segments.find((s: any) => s.id === id);
+                  if (foundSegment) {
+                    segment = foundSegment;
+                    console.log(`Found segment with ID ${id} in audio file ${file.id}`);
+                    break;
+                  }
+                }
+              }
+            } catch (lookupErr) {
+              console.error("Error during alternative segment lookup:", lookupErr);
+            }
+          }
+          
+          if (!segment) {
+            console.log(`Segment ${id} not found after all attempts`);
             errors.push({ id, error: "Segment not found" });
             continue;
           }

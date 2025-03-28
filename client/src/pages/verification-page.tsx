@@ -133,8 +133,16 @@ export default function VerificationPage() {
       return;
     }
 
-    // Filter out any invalid segment IDs
-    const validIds = selectedTranscriptions.filter(id => id > 0);
+    // Log original selection for debugging
+    console.log("Original selection:", selectedTranscriptions);
+    
+    // Filter out any invalid segment IDs and ensure proper format
+    const validIds = selectedTranscriptions
+      .map(id => formatSegmentId(id))
+      .filter(id => id > 0);
+    
+    console.log("Selected IDs:", selectedTranscriptions);
+    console.log("Valid segment IDs for approval:", validIds);
     
     if (validIds.length === 0) {
       toast({
@@ -144,6 +152,12 @@ export default function VerificationPage() {
       });
       return;
     }
+    
+    // Let user know we're processing
+    toast({
+      title: "Processing Approval",
+      description: `Approving ${validIds.length} transcriptions...`,
+    });
     
     batchApproveMutation.mutate(validIds);
   };
@@ -230,8 +244,16 @@ export default function VerificationPage() {
       return;
     }
 
-    // Filter out any invalid segment IDs
-    const validIds = selectedTranscriptions.filter(id => id > 0);
+    // Log original selection for debugging
+    console.log("Original selection:", selectedTranscriptions);
+    
+    // Filter out any invalid segment IDs and ensure proper format
+    const validIds = selectedTranscriptions
+      .map(id => formatSegmentId(id))
+      .filter(id => id > 0);
+    
+    console.log("Selected IDs:", selectedTranscriptions);
+    console.log("Valid segment IDs for download:", validIds);
     
     if (validIds.length === 0) {
       toast({
@@ -241,6 +263,12 @@ export default function VerificationPage() {
       });
       return;
     }
+    
+    // Let user know we're processing
+    toast({
+      title: "Processing Download",
+      description: `Preparing ${validIds.length} transcriptions for download...`,
+    });
     
     downloadSelectedMutation.mutate(validIds);
   };
@@ -359,10 +387,13 @@ export default function VerificationPage() {
       return;
     }
 
+    // Log original selection for debugging
+    console.log("Original selection:", selectedTranscriptions);
+    
     // Filter out any invalid segment IDs and ensure proper format
     const validIds = selectedTranscriptions
-      .filter(id => id > 0)
-      .map(id => formatSegmentId(id));
+      .map(id => formatSegmentId(id))
+      .filter(id => id > 0);
     
     console.log("Selected IDs:", selectedTranscriptions);
     console.log("Valid segment IDs for download:", validIds);
