@@ -471,6 +471,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk assign segments to transcriber
+  app.post("/api/admin/assign-segments", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { segmentIds, userId } = req.body;
+      
+      if (!segmentIds || !Array.isArray(segmentIds) || segmentIds.length === 0 || !userId) {
+        return res.status(400).json({ message: "segmentIds array and userId are required" });
+      }
+      
+      // Verify user exists
+      const user = await storage.getUser(userId);
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Process each segment
+      const results = [];
+      const errors = [];
+      
+      for (const segmentId of segmentIds) {
+        try {
+          // Get segment
+          const segment = await storage.getAudioSegmentById(segmentId);
+          if (!segment) {
+            errors.push({ segmentId, error: "Segment not found" });
+            continue;
+          }
+          
+          // Verify segment is available
+          if (segment.status !== "available") {
+            errors.push({ segmentId, error: "Segment is not available for assignment" });
+            continue;
+          }
+          
+          // Update segment
+          const updatedSegment = await storage.updateAudioSegment(segmentId, {
+            assignedTo: userId,
+            status: "assigned"
+          });
+          
+          results.push(updatedSegment);
+        } catch (err) {
+          errors.push({ segmentId, error: err instanceof Error ? err.message : "Unknown error" });
+        }
+      }
+      
+      res.status(200).json({
+        success: results.length,
+        errors: errors.length > 0 ? errors : undefined,
+        segments: results
+      });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   // Export routes
   app.post("/api/exports", isAuthenticated, isAdmin, async (req, res) => {
     try {

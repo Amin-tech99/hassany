@@ -109,12 +109,8 @@ export function TranscriptionList() {
 
   // Open transcription task
   const openTranscriptionTask = (taskId: number) => {
-    // Force a navigation to update the route and pass the segment ID
-    setLocation('/transcriptions');
-    // We need to use a small timeout to ensure the navigation completes before redirecting to the task
-    setTimeout(() => {
-      setLocation(`/transcriptions/${taskId}`);
-    }, 10);
+    // Directly navigate to the task with the segment ID
+    setLocation(`/transcriptions/${taskId}`);
   };
 
   return (

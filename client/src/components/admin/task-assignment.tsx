@@ -46,7 +46,7 @@ interface User {
 export function TaskAssignment() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedSegment, setSelectedSegment] = useState<number | null>(null);
+  const [selectedSegments, setSelectedSegments] = useState<number[]>([]);
   const [selectedUser, setSelectedUser] = useState<number | null>(null);
 
   // Fetch available segments
@@ -70,21 +70,23 @@ export function TaskAssignment() {
 
   // Mutation for assigning segment
   const assignMutation = useMutation({
-    mutationFn: async ({ segmentId, userId }: { segmentId: number, userId: number }) => {
-      const res = await apiRequest("POST", "/api/admin/assign-segment", { 
-        segmentId, 
+    mutationFn: async ({ segmentIds, userId }: { segmentIds: number[], userId: number }) => {
+      // Use the bulk assignment endpoint instead of individual calls
+      const response = await apiRequest("POST", "/api/admin/assign-segments", { 
+        segmentIds, 
         userId 
       });
-      return await res.json();
+      return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Show success message with details
       toast({
-        title: "Task assigned successfully",
-        description: "The audio segment has been assigned to the selected user.",
+        title: "Tasks assigned successfully",
+        description: `${data.success} audio segment(s) have been assigned to the selected user.${data.errors ? ` (${data.errors.length} failed)` : ''}`,
       });
       
       // Reset selections
-      setSelectedSegment(null);
+      setSelectedSegments([]);
       setSelectedUser(null);
       
       // Refresh data
@@ -94,7 +96,7 @@ export function TaskAssignment() {
     },
     onError: (error: Error) => {
       toast({
-        title: "Failed to assign task",
+        title: "Failed to assign tasks",
         description: error.message,
         variant: "destructive",
       });
@@ -106,9 +108,29 @@ export function TaskAssignment() {
     return `${Math.round(durationInMs / 1000)}s`;
   };
 
-  // Handle segment selection
+  // Handle segment selection/deselection
   const handleSegmentSelect = (segmentId: number) => {
-    setSelectedSegment(segmentId === selectedSegment ? null : segmentId);
+    setSelectedSegments(prevSelected => {
+      // If already selected, remove it
+      if (prevSelected.includes(segmentId)) {
+        return prevSelected.filter(id => id !== segmentId);
+      }
+      // Otherwise add it
+      return [...prevSelected, segmentId];
+    });
+  };
+
+  // Toggle select all segments
+  const handleSelectAll = () => {
+    if (!availableSegments) return;
+    
+    if (selectedSegments.length === availableSegments.length) {
+      // If all are selected, clear selection
+      setSelectedSegments([]);
+    } else {
+      // Otherwise select all
+      setSelectedSegments(availableSegments.map(segment => segment.id));
+    }
   };
 
   // Handle user selection
@@ -118,17 +140,17 @@ export function TaskAssignment() {
 
   // Handle assignment
   const handleAssign = () => {
-    if (!selectedSegment || !selectedUser) {
+    if (selectedSegments.length === 0 || !selectedUser) {
       toast({
         title: "Selection required",
-        description: "Please select both a segment and a user for assignment.",
+        description: "Please select both segments and a user for assignment.",
         variant: "destructive",
       });
       return;
     }
 
     assignMutation.mutate({ 
-      segmentId: selectedSegment, 
+      segmentIds: selectedSegments, 
       userId: selectedUser 
     });
   };
@@ -151,10 +173,26 @@ export function TaskAssignment() {
         ) : (
           <div>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-medium">Available Segments</h3>
+              <div className="flex items-center space-x-2">
+                <h3 className="text-lg font-medium">Available Segments</h3>
+                {availableSegments && availableSegments.length > 0 && (
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleSelectAll}
+                  >
+                    {selectedSegments.length === availableSegments.length ? "Deselect All" : "Select All"}
+                  </Button>
+                )}
+                {selectedSegments.length > 0 && (
+                  <span className="text-sm text-gray-500">
+                    {selectedSegments.length} selected
+                  </span>
+                )}
+              </div>
               <div className="flex items-center space-x-2">
                 <Select 
-                  disabled={!selectedSegment || assignMutation.isPending} 
+                  disabled={selectedSegments.length === 0 || assignMutation.isPending} 
                   onValueChange={handleUserChange}
                 >
                   <SelectTrigger className="w-[200px]">
@@ -169,13 +207,13 @@ export function TaskAssignment() {
                   </SelectContent>
                 </Select>
                 <Button 
-                  disabled={!selectedSegment || !selectedUser || assignMutation.isPending}
+                  disabled={selectedSegments.length === 0 || !selectedUser || assignMutation.isPending}
                   onClick={handleAssign}
                 >
                   {assignMutation.isPending ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   ) : null}
-                  Assign
+                  Assign ({selectedSegments.length})
                 </Button>
               </div>
             </div>
@@ -195,13 +233,13 @@ export function TaskAssignment() {
                     availableSegments.map((segment) => (
                       <TableRow 
                         key={segment.id}
-                        className={selectedSegment === segment.id ? "bg-slate-100" : ""}
+                        className={selectedSegments.includes(segment.id) ? "bg-slate-100" : ""}
                         onClick={() => handleSegmentSelect(segment.id)}
                       >
                         <TableCell>
                           <input 
-                            type="radio" 
-                            checked={selectedSegment === segment.id}
+                            type="checkbox" 
+                            checked={selectedSegments.includes(segment.id)}
                             onChange={() => {}}
                             className="h-4 w-4 text-primary border-gray-300 focus:ring-primary"
                           />

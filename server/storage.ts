@@ -350,14 +350,37 @@ export class MemStorage implements IStorage {
           if (status === "assigned" && segment.assignedTo !== userId) {
             return false;
           }
-          if (status === "review" && segment.status !== "transcribed") {
-            return false;
+          if (status === "review") {
+            // For review status, show all segments with status "transcribed" (pending review)
+            // Do not filter by userId for admin users
+            const user = this.users.get(userId);
+            const isAdmin = user?.role === 'admin';
+            
+            if (segment.status !== "transcribed") {
+              return false;
+            }
+            
+            // For non-admin users, only show segments assigned to them for review
+            if (!isAdmin && segment.reviewedBy !== userId) {
+              return false;
+            }
+            
+            return true;
           }
           if (status === "completed" && segment.status !== "reviewed") {
             return false;
           }
         }
         
+        // Check if user is admin - for admins, return all segments
+        const user = this.users.get(userId);
+        const isAdmin = user?.role === 'admin';
+        
+        if (isAdmin) {
+          return true;
+        }
+        
+        // For regular users, only return segments they're involved with
         return segment.assignedTo === userId || 
                segment.transcribedBy === userId || 
                segment.reviewedBy === userId;

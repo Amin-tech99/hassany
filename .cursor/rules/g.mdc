@@ -1,0 +1,37 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+1. Use "cursor_project_rules" as the Knowledge Base: Always refer to "cursor_project_rules" for project context. Do not code outside this folder.  
+2. Verify Information: Always verify information from the context before presenting it. Avoid assumptions.  
+3. Follow "implementation-plan.mdc" for Feature Development: Strictly adhere to the steps in "implementation-plan.mdc" and update it after each step.  
+4. File-by-File Changes: Make changes one file at a time, allowing the user to spot mistakes.  
+5. No Apologies: Never use apologies.  
+6. No Understanding Feedback: Avoid feedback about understanding in comments or documentation.  
+7. No Whitespace Suggestions: Don't suggest whitespace changes.  
+8. No Summaries: Only summarize changes if explicitly requested.  
+9. No Intentions: Do not invent changes beyond what is explicitly requested.  
+10. No Unnecessary Confirmations: Avoid confirming information already provided in the context.  
+11. Preserve Existing Code: Do not remove unrelated code or functionalities.  
+12. Single Chunk Edits: Provide all data in one chunk for the same file.  
+13. No Implementation Check: Avoid asking the user to verify visible implementations; use automated checks instead.  
+14. No Unnecessary Updates: Do not suggest changes when no modifications are needed.  
+15. Provide Real File Links: Always link to real files, not context-generated ones.  
+16. No Current Implementation: Avoid discussing current implementation unless asked or necessary.  
+17. Check Context Generated File Content: Verify context-generated files for current contents.  
+18. Use Explicit Variable Names: Prefer descriptive variable names for readability.  
+19. Follow Consistent Coding Style: Adhere to the project's existing coding style.  
+20. Prioritize Performance: Consider performance when suggesting changes.  
+21. Security-First Approach: Always evaluate security implications of changes.  
+22. Test Coverage: Include or suggest unit tests for new or modified code.  
+23. Error Handling: Implement robust error handling and logging.  
+24. Modular Design: Encourage modular design for maintainability.  
+25. Version Compatibility: Ensure changes align with project language/framework versions.  
+26. Avoid Magic Numbers: Replace hardcoded values with named constants.  
+27. Consider Edge Cases: Handle potential edge cases in logic.  
+28. Use Assertions: Include assertions to validate assumptions.  
+
+These rules emphasize context adherence, clarity, efficiency, and best practices in coding and collaboration.
+

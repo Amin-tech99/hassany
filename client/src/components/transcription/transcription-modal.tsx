@@ -39,6 +39,7 @@ export function TranscriptionModal({
   const [rating, setRating] = useState<number | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
   
+  // Make sure admin and reviewer roles can verify transcriptions
   const isReviewer = user?.role === "reviewer" || user?.role === "admin";
   
   // Fetch transcription data
@@ -52,11 +53,23 @@ export function TranscriptionModal({
     if (segmentData) {
       setTranscriptionText(segmentData.transcription?.text || "");
       setNotes(segmentData.transcription?.notes || "");
-      setRating(segmentData.transcription?.rating || null);
-      setReviewNotes(segmentData.transcription?.reviewNotes || "");
-      setApprovalStatus(null);
+      
+      // Reset approval state and rating when loading a new segment
+      if (isReviewer) {
+        setRating(segmentData.transcription?.rating || null);
+        setReviewNotes(segmentData.transcription?.reviewNotes || "");
+        
+        // Initialize approval status based on current transcription status
+        if (segmentData.transcription?.status === "approved") {
+          setApprovalStatus("approve");
+        } else if (segmentData.transcription?.status === "rejected") {
+          setApprovalStatus("needs_revision");
+        } else {
+          setApprovalStatus(null);
+        }
+      }
     }
-  }, [segmentData]);
+  }, [segmentData, isReviewer]);
   
   // Save transcription mutation
   const saveTranscriptionMutation = useMutation({
