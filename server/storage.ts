@@ -61,6 +61,7 @@ interface FormattedTranscription {
   endTime?: number;
   speaker?: string;
   confidence?: number;
+  verified?: boolean;
 }
 
 export interface IStorage {
@@ -411,6 +412,7 @@ export class MemStorage implements IStorage {
   }
 
   async getVerifiedTranscriptions(startDate?: string, endDate?: string): Promise<FormattedTranscription[]> {
+    // Get all transcriptions with "approved" status
     const verified = Array.from(this.transcriptions.values())
       .filter(t => t.status === "approved")
       .filter(t => {
@@ -429,24 +431,35 @@ export class MemStorage implements IStorage {
         return createdAt >= new Date(startDate!) && createdAt <= new Date(endDate!);
       });
     
+    console.log(`Found ${verified.length} transcriptions with "approved" status`);
+    
     const formattedTranscriptions: FormattedTranscription[] = await Promise.all(
       verified.map(async t => {
         const segment = await this.getAudioSegmentById(t.segmentId);
+        if (!segment) {
+          console.log(`Warning: Segment ${t.segmentId} not found for transcription ${t.id}`);
+          return null;
+        }
         
         return {
           id: t.id,
           text: t.text,
-          audioPath: segment?.segmentPath || "",
-          duration: segment?.duration || 0,
-          startTime: segment?.startTime,
-          endTime: segment?.endTime,
+          audioPath: segment.segmentPath || "",
+          duration: segment.duration || 0,
+          startTime: segment.startTime,
+          endTime: segment.endTime,
           speaker: "unknown", // Placeholder, would be populated from real data
           confidence: 0.95, // Placeholder, would be populated from real data
+          verified: true,
         };
       })
     );
     
-    return formattedTranscriptions;
+    // Filter out any null values (from missing segments)
+    const filteredTranscriptions = formattedTranscriptions.filter(t => t !== null) as FormattedTranscription[];
+    console.log(`Returning ${filteredTranscriptions.length} formatted transcriptions`);
+    
+    return filteredTranscriptions;
   }
 
   // Export operations

@@ -550,16 +550,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let transcriptions;
       if (exportType === "all_verified") {
         transcriptions = await storage.getVerifiedTranscriptions(startDate, endDate);
-        
-        // Filter to only include fully cross-validated transcriptions
-        transcriptions = transcriptions.filter(t => t.verified === true);
+        console.log(`Found ${transcriptions.length} verified transcriptions for export`);
       } else {
         // For selected files, we would need file IDs
         // This is a simplified implementation
         transcriptions = await storage.getVerifiedTranscriptions(startDate, endDate);
-        
-        // Filter to only include fully cross-validated transcriptions
-        transcriptions = transcriptions.filter(t => t.verified === true);
+        console.log(`Found ${transcriptions.length} verified transcriptions for export`);
       }
       
       // Format the data according to the selected format
@@ -575,6 +571,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           } : {}),
           ...(includeConfidence && t.confidence ? { confidence: t.confidence } : {})
         }));
+        console.log(`Formatted ${exportData.length} transcriptions for Whisper export`);
       } else if (format === "standard") {
         exportData = transcriptions.map(t => ({
           id: t.id,
