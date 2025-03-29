@@ -1412,6 +1412,8 @@ This ZIP was created in emergency mode, which creates placeholder files for all 
   app.get("/api/segments/simple-download", async (req, res) => {
     try {
       console.log("SIMPLE DOWNLOAD: Starting simple multi-segment download");
+      console.log("Request path:", req.path);
+      console.log("Request query:", req.query);
       
       // Get segment IDs from query parameters
       const segmentIdParams = req.query.id;
@@ -1625,7 +1627,7 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
         This is a simplified download page that allows you to download multiple segments as a ZIP file.
       </div>
       
-      <form id="downloadForm" action="/api/segments/simple-download" method="get">
+      <form id="downloadForm">
         <div class="form-group">
           <label for="segments">Enter segment IDs (comma separated)</label>
           <input type="text" id="segments" name="segmentIds" placeholder="e.g. 1,2,3,14">
@@ -1638,7 +1640,7 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
           </div>
         </div>
         
-        <button type="submit" id="downloadButton">Download ZIP</button>
+        <button type="button" id="downloadButton">Download ZIP</button>
       </form>
       
       <script>
@@ -1646,6 +1648,7 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
         const segmentsList = document.getElementById('segmentsList');
         const segmentsInput = document.getElementById('segments');
         const form = document.getElementById('downloadForm');
+        const downloadButton = document.getElementById('downloadButton');
         
         // Create 20 segments
         for (let i = 1; i <= 20; i++) {
@@ -1670,9 +1673,7 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
         }
         
         // Handle form submission
-        form.addEventListener('submit', function(e) {
-          e.preventDefault();
-          
+        downloadButton.addEventListener('click', function() {
           const segments = segmentsInput.value.split(',').map(s => s.trim()).filter(s => s);
           
           if (segments.length === 0) {
@@ -1684,7 +1685,7 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
           const queryParams = segments.map(id => 'id=' + encodeURIComponent(id)).join('&');
           const url = '/api/segments/simple-download?' + queryParams;
           
-          // Redirect to download URL
+          // Navigate to the download URL
           window.location.href = url;
         });
       </script>
