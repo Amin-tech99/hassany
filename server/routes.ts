@@ -191,20 +191,6 @@ app.get("/api/audio/download/:token", async (req, res) => {
         // Clean up after sending
         setTimeout(() => {
           try {
-      // Set appropriate headers for download
-      res.setHeader("Content-Type", "application/zip");
-      res.setHeader("Content-Disposition", `attachment; filename="${zipFilename}"`);
-      
-      // Stream the file
-      const fileStream = fs.createReadStream(zipPath);
-      fileStream.pipe(res);
-      
-      // Clean up after sending
-      fileStream.on("end", () => {
-        console.log("File streaming completed");
-        // Delete files after a delay to ensure download completes
-        setTimeout(() => {
-          try {
             fs.unlinkSync(zipPath);
             fs.rmSync(tempDir, { recursive: true, force: true });
             console.log("Temporary files cleaned up");
@@ -222,18 +208,27 @@ app.get("/api/audio/download/:token", async (req, res) => {
       });
     });
     
-    // Pipe the archive to the file
-    archive.pipe(zipFile);
-    
-    // Add the README to the zip
-    archive.file(readmePath, { name: "README.txt" });
-    
-    // Add a test file to ensure the zip isn't empty
-    const testFilePath = path.join(tempDir, "test.txt");
-    fs.writeFileSync(testFilePath, "This is a test file to ensure the archive works properly.");
-    archive.file(testFilePath, { name: "TEST.txt" });
-    
-    console.log("Added README and test files to zip");
+    // Wrap the following section in a try block
+    try {
+      // Pipe the archive to the file
+      archive.pipe(zipFile);
+      
+      // Add the README to the zip
+      archive.file(readmePath, { name: "README.txt" });
+      
+      // Add a test file to ensure the zip isn't empty
+      const testFilePath = path.join(tempDir, "test.txt");
+      fs.writeFileSync(testFilePath, "This is a test file to ensure the archive works properly.");
+      archive.file(testFilePath, { name: "TEST.txt" });
+      
+      console.log("Added README and test files to zip");
+    } catch (err) {
+      console.error("Error setting up archive:", err);
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Error preparing download" });
+      }
+      return;
+    }
     
     try {
       // Get audio files
