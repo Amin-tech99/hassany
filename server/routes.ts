@@ -1894,9 +1894,10 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
   app.get("/api/audio/export-all", isAuthenticated, isAdmin, async (req, res) => {
     console.log("=====================================");
     console.log("AUDIO EXPORT ENDPOINT CALLED", new Date().toISOString());
-    console.log("Authentication Headers:", req.headers.authorization ? "Authorization Present" : "Authorization Missing");
+    console.log("Authentication Headers:", req.headers.authorization ? "Authorization Present" : "Authentication Missing");
     console.log("Cookie Headers:", req.headers.cookie ? "Cookies Present" : "Cookies Missing");
     console.log("User Object:", req.user ? `ID: ${req.user.id}, Role: ${req.user.role}` : "No User Object");
+    console.log("All Request Headers:", JSON.stringify(req.headers, null, 2));
     console.log("=====================================");
     
     // Always ensure uploads directory exists
@@ -1936,7 +1937,9 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
       // Listen for errors on the output stream
       zipFile.on("error", (err) => {
         console.error("Error creating zip file:", err);
-        res.status(500).json({ error: "Failed to create zip file", details: err.message });
+        if (!res.headersSent) {
+          res.status(500).json({ error: "Failed to create zip file", details: err.message });
+        }
       });
       
       // Listen for close event on the output stream
@@ -1944,14 +1947,27 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
         console.log(`Zip file created successfully. Size: ${zip.pointer()} bytes`);
         
         // Send the file as a download
-        res.download(zipPath, zipFilename, (err) => {
-          if (err) {
-            console.error("Error sending zip file:", err);
-            return;
+        console.log("Sending file to client:", zipPath);
+        res.setHeader('Content-Type', 'application/zip');
+        res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
+        
+        // Use pipe instead of res.download for more reliable streaming
+        const fileStream = fs.createReadStream(zipPath);
+        
+        fileStream.on('error', (err) => {
+          console.error("Error reading zip file for download:", err);
+          if (!res.headersSent) {
+            res.status(500).json({ error: "Error reading zip file", details: err.message });
           }
-          
+        });
+        
+        // Pipe the file to the response
+        fileStream.pipe(res);
+        
+        // Clean up on finish
+        res.on('finish', () => {
+          console.log("Download complete, cleaning up");
           // Delete the zip file after sending
-          console.log("Zip file sent, cleaning up");
           setTimeout(() => {
             try {
               fs.unlinkSync(zipPath);
@@ -1960,8 +1976,8 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
               // Clean up temp directory
               fs.rmSync(tempDir, { recursive: true, force: true });
               console.log("Temp directory deleted");
-            } catch (err) {
-              console.error("Error cleaning up:", err);
+            } catch (cleanupErr) {
+              console.error("Error cleaning up:", cleanupErr);
             }
           }, 5000);
         });
@@ -2005,6 +2021,12 @@ If the archive is empty, it means no audio files were found.`;
       zip.file(readmePath, { name: "README.txt" });
       console.log("Added README file to archive");
       
+      // Create a test file to ensure we always have something to download
+      const testFilePath = path.join(tempDir, "test.txt");
+      fs.writeFileSync(testFilePath, "This is a test file to ensure the zip archive is working.");
+      zip.file(testFilePath, { name: "test.txt" });
+      console.log("Added test file to archive");
+      
       let addedFiles = 0;
       
       try {
@@ -2030,8 +2052,8 @@ If the archive is empty, it means no audio files were found.`;
               } else {
                 console.log(`Processed file not found: ${filePath}`);
               }
-            } catch (err) {
-              console.error(`Error adding processed file ${file.id}:`, err);
+            } catch (fileErr) {
+              console.error(`Error adding processed file ${file.id}:`, fileErr);
             }
           }
         }
@@ -2053,8 +2075,8 @@ If the archive is empty, it means no audio files were found.`;
               } else {
                 console.log(`Segment file not found: ${segmentPath}`);
               }
-            } catch (err) {
-              console.error(`Error adding segment ${segment.id}:`, err);
+            } catch (segmentErr) {
+              console.error(`Error adding segment ${segment.id}:`, segmentErr);
             }
           }
         }
@@ -2067,16 +2089,20 @@ If the archive is empty, it means no audio files were found.`;
           console.log("No files found, added empty message");
         }
         
-        console.log(`Finalizing zip with ${addedFiles} files`);
+        console.log(`Finalizing zip with ${addedFiles} files plus README and test files`);
         zip.finalize();
         
-      } catch (err) {
-        console.error("Error processing files:", err);
+      } catch (processErr) {
+        console.error("Error processing files:", processErr);
         
         // Add error file to zip if not yet finalized
         try {
           const errorFilePath = path.join(tempDir, "error.txt");
-          fs.writeFileSync(errorFilePath, `Error occurred during export: ${err.message || "Unknown error"}`);
+          const errorMessage = processErr instanceof Error ? 
+            `Error occurred during export: ${processErr.message}` : 
+            "Unknown error occurred during export";
+          
+          fs.writeFileSync(errorFilePath, errorMessage);
           zip.file(errorFilePath, { name: "ERROR.txt" });
           console.log("Added error file to zip");
           
@@ -2085,7 +2111,10 @@ If the archive is empty, it means no audio files were found.`;
         } catch (finalizeErr) {
           console.error("Error adding error file to zip:", finalizeErr);
           if (!res.headersSent) {
-            res.status(500).json({ error: "Failed to process files", details: err.message });
+            res.status(500).json({ 
+              error: "Failed to process files", 
+              details: processErr instanceof Error ? processErr.message : "Unknown error" 
+            });
           }
         }
       }

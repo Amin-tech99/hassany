@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Loader2, Trash2, AlertTriangle, Download } from "lucide-react";
+import { Loader2, Trash2, AlertTriangle, Download, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -19,6 +19,7 @@ export function CleanupStorage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const downloadFrameRef = useRef<HTMLIFrameElement>(null);
+  const [showBackupOption, setShowBackupOption] = useState(false);
   
   // This ensures authentication is maintained for downloads
   useEffect(() => {
@@ -26,6 +27,7 @@ export function CleanupStorage() {
     const keepSessionAlive = async () => {
       try {
         await apiRequest("GET", "/api/user/current");
+        console.log("Session refreshed successfully");
       } catch (error) {
         console.error("Error refreshing session:", error);
       }
@@ -83,19 +85,21 @@ export function CleanupStorage() {
       });
       
       // Use a hidden iframe to handle the download with credentials
-      // This works better than the blob approach because it maintains the session
       if (downloadFrameRef.current) {
         // Set the src to the export endpoint
+        console.log("Starting download via iframe...");
         downloadFrameRef.current.src = "/api/audio/export-all";
         
-        // Show a success message after a delay to allow download to start
+        // After a delay, show a backup option if the download didn't start
         setTimeout(() => {
           setIsDownloading(false);
+          setShowBackupOption(true);
+          
           toast({
             title: "Download Started",
-            description: "If the download didn't start automatically, please check your browser settings."
+            description: "If the download didn't start automatically, use the 'Direct Download' button below.",
           });
-        }, 5000);
+        }, 7000);
       } else {
         throw new Error("Download frame not available");
       }
@@ -108,6 +112,9 @@ export function CleanupStorage() {
         variant: "destructive",
       });
       
+      // Show backup option on error
+      setShowBackupOption(true);
+      
       // Log additional debug information
       console.error("Download error details:", {
         error,
@@ -115,6 +122,11 @@ export function CleanupStorage() {
         iframeRef: downloadFrameRef.current ? "Available" : "Not available"
       });
     }
+  };
+  
+  const handleDirectDownload = () => {
+    // Open the export endpoint in a new tab
+    window.open("/api/audio/export-all", "_blank");
   };
   
   return (
@@ -150,6 +162,25 @@ export function CleanupStorage() {
                 for future use or training purposes.
               </AlertDescription>
             </Alert>
+            
+            {showBackupOption && (
+              <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900 mt-4">
+                <ExternalLink className="h-4 w-4 text-green-600 dark:text-green-400" />
+                <AlertTitle className="text-green-600 dark:text-green-400">Direct Download Option</AlertTitle>
+                <AlertDescription className="text-green-700 dark:text-green-300">
+                  <p className="mb-2">If the automatic download didn't start, try the direct download:</p>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleDirectDownload}
+                    className="bg-green-100 hover:bg-green-200 dark:bg-green-800 dark:hover:bg-green-700 border-green-300 dark:border-green-700"
+                  >
+                    <ExternalLink className="mr-2 h-4 w-4" />
+                    Open in New Tab
+                  </Button>
+                </AlertDescription>
+              </Alert>
+            )}
           </div>
         )}
         
