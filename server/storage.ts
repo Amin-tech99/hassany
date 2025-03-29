@@ -87,6 +87,7 @@ export interface IStorage {
   updateAudioSegmentStatus(id: number, status: string): Promise<AudioSegment>;
   getAudioSegmentsByFileId(fileId: number): Promise<AudioSegment[]>;
   getAvailableSegments(): Promise<AudioSegment[]>;
+  getAllSegments(): Promise<AudioSegment[]>;
   
   // Transcription operations
   createTranscription(transcription: InsertTranscription): Promise<Transcription>;
@@ -313,6 +314,11 @@ export class MemStorage implements IStorage {
     return Array.from(this.audioSegments.values())
       .filter(segment => segment.status === "available")
       .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime()); // Sort oldest first
+  }
+
+  async getAllSegments(): Promise<AudioSegment[]> {
+    // Return all audio segments regardless of status
+    return Array.from(this.audioSegments.values());
   }
 
   // Transcription operations
