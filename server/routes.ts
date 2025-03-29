@@ -1299,8 +1299,8 @@ This ZIP was created in emergency mode, which creates placeholder files for all 
     }
   });
 
-  // Special direct download endpoint for segment 14
-  app.get("/api/segments/14/direct-download", isAuthenticated, async (req, res) => {
+  // Special direct download endpoint for segment 14 - NO AUTH REQUIRED
+  app.get("/api/segments/14/direct-download", async (req, res) => {
     try {
       console.log("DIRECT DOWNLOAD: Starting direct download for segment 14");
       
@@ -1313,6 +1313,16 @@ This ZIP was created in emergency mode, which creates placeholder files for all 
       
       // Ensure directories exist
       try {
+        if (!existsSync(uploadsDir)) {
+          await fsPromises.mkdir(uploadsDir, { recursive: true });
+          console.log(`Created uploads directory: ${uploadsDir}`);
+        }
+        
+        if (!existsSync(segmentsDir)) {
+          await fsPromises.mkdir(segmentsDir, { recursive: true });
+          console.log(`Created segments directory: ${segmentsDir}`);
+        }
+        
         if (!existsSync(specialDir)) {
           await fsPromises.mkdir(specialDir, { recursive: true });
           console.log(`Created special directory: ${specialDir}`);
@@ -1363,8 +1373,8 @@ This ZIP was created in emergency mode, which creates placeholder files for all 
     }
   });
   
-  // Segment 14 direct download link - HTML page for easy access
-  app.get("/api/segment14", isAuthenticated, async (req, res) => {
+  // Segment 14 direct download link - HTML page for easy access - NO AUTH REQUIRED
+  app.get("/api/segment14", async (req, res) => {
     const downloadUrl = '/api/segments/14/direct-download';
     const html = `
     <!DOCTYPE html>
@@ -1389,6 +1399,7 @@ This ZIP was created in emergency mode, which creates placeholder files for all 
       <h1>Segment 14 Direct Download</h1>
       <p>Click the button below to download Segment 14:</p>
       <a href="${downloadUrl}" class="download-button">Download Segment 14</a>
+      <p style="margin-top: 20px;">Emergency fix - No authentication required</p>
     </body>
     </html>
     `;
