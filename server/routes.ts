@@ -2267,16 +2267,11 @@ You can then use this data with Whisper's fine-tuning scripts.
   });
 
   // Export all audio for backup
-  app.get("/api/audio/export-all", requireAuth, async (req, res) => {
+  app.get("/api/audio/export-all", isAuthenticated, isAdmin, async (req, res) => {
     console.log("Export all audio endpoint called");
     console.log(`User: ${req.user?.id} (${req.user?.role})`);
     
     try {
-      if (!req.user || req.user.role !== "admin") {
-        console.log("Unauthorized access attempt to export endpoint");
-        return res.status(403).json({ error: "Unauthorized access" });
-      }
-
       const uploadsDir = path.join(__dirname, "..", "uploads");
       const segmentsDir = path.join(uploadsDir, "segments");
       const exportsDir = path.join(uploadsDir, "exports");
@@ -2327,8 +2322,9 @@ You can then use this data with Whisper's fine-tuning scripts.
       try {
         // Get all audio files that have been processed
         console.log("Retrieving processed audio files");
-        const files = await storage.getAllAudioFiles();
-        const processedFiles = files.filter(file => file.status === "processed");
+        const audioFilesMap = await storage.getAllAudioFiles();
+        const audioFiles = Array.from(audioFilesMap.values());
+        const processedFiles = audioFiles.filter(file => file.status === "processed");
         console.log(`Found ${processedFiles.length} processed audio files`);
 
         // Get all segments
