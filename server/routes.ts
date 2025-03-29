@@ -821,8 +821,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Add audio segments download endpoint (as ZIP)
   app.get("/api/segments/download-audio", isAuthenticated, async (req, res) => {
     try {
-      console.log("EMERGENCY FIX: Starting segment download with emergency fix enabled");
-      
       // Get segment IDs from query parameters
       const segmentIdParams = req.query.id;
       let rawIds: (string | number)[] = [];
@@ -832,77 +830,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else if (segmentIdParams) {
         rawIds = [segmentIdParams as string | number];
       }
+
+      if (rawIds.length === 0) {
+        return res.status(400).json({ message: "No valid segment IDs provided" });
+      }
       
-      console.log("Raw segment ID parameters received:", rawIds);
-      
-      // Create all necessary directories
+      console.log("Received request to download audio for IDs:", rawIds);
+
+      // Define necessary directories
       const uploadsDir = path.join(process.cwd(), "uploads");
-      const segmentsDir = path.join(uploadsDir, "segments");
-      const exportsDir = path.join(uploadsDir, "exports");
-      const emergencyDir = path.join(segmentsDir, "emergency");
+      const segmentsDir = path.join(uploadsDir, "segments"); // Directory where actual segments are stored
+      const exportsDir = path.join(uploadsDir, "exports"); // Directory for temporary zip files
       
-      console.log("EMERGENCY FIX: Creating directories if needed");
-      
-      // Ensure directories exist
+      // Ensure exports directory exists
       try {
-        if (!existsSync(uploadsDir)) {
-          await fsPromises.mkdir(uploadsDir, { recursive: true });
-          console.log(`Created uploads directory: ${uploadsDir}`);
-        }
-        
-        if (!existsSync(segmentsDir)) {
-          await fsPromises.mkdir(segmentsDir, { recursive: true });
-          console.log(`Created segments directory: ${segmentsDir}`);
-        }
-        
         if (!existsSync(exportsDir)) {
           await fsPromises.mkdir(exportsDir, { recursive: true });
           console.log(`Created exports directory: ${exportsDir}`);
         }
-        
-        if (!existsSync(emergencyDir)) {
-          await fsPromises.mkdir(emergencyDir, { recursive: true });
-          console.log(`Created emergency directory: ${emergencyDir}`);
-        }
       } catch (dirError) {
-        console.error("Error creating directories:", dirError);
+        console.error("Error creating exports directory:", dirError);
+        return res.status(500).json({ message: "Failed to prepare download location" });
       }
-      
+
       // Create a timestamp for the zip filename and path
       const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
       const zipFilename = `audio_segments_${timestamp}.zip`;
       const zipFilePath = path.join(exportsDir, zipFilename);
-      
-      console.log(`EMERGENCY FIX: Creating zip file at: ${zipFilePath}`);
-      
+
+      console.log(`Creating zip file at: ${zipFilePath}`);
+
       // Create a write stream for the zip file
       const output = fs.createWriteStream(zipFilePath);
       const archive = archiver('zip', {
         zlib: { level: 9 } // Maximum compression
       });
-      
+
       // Set up event listeners
       output.on('close', async () => {
         try {
-          console.log(`EMERGENCY FIX: Zip file created successfully. Size: ${archive.pointer()} bytes`);
+          console.log(`Zip file created successfully. Size: ${archive.pointer()} bytes`);
           // Send the zip file as download
           res.download(zipFilePath, zipFilename, (err) => {
             if (err) {
               console.error('Download error:', err);
+              // Avoid sending status if headers already sent
               if (!res.headersSent) {
                 res.status(500).json({ message: err.message });
               }
             }
-            // Remove the temporary zip file after sending
+            // Clean up the temporary zip file after sending attempt
             setTimeout(() => {
-              try {
-                fs.unlink(zipFilePath, (unlinkErr: NodeJS.ErrnoException | null) => {
-                  if (unlinkErr) console.error('Error removing temp zip file:', unlinkErr);
-                });
-              } catch (unlinkError) {
-                console.error("Error removing zip file:", unlinkError);
-              }
-            }, 5000); // Give a 5 second delay to ensure download starts
+              fs.unlink(zipFilePath, (unlinkErr) => {
+                if (unlinkErr) console.error('Error removing temp zip file:', unlinkErr);
+                else console.log(`Removed temp zip file: ${zipFilePath}`);
+              });
+            }, 5000); // Delay to ensure download can start
           });
         } catch (err) {
           console.error('Error sending zip file:', err);
@@ -912,106 +895,128 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      archive.on('warning', (err: Error) => {
+      archive.on('warning', (err) => {
         console.warn('Zip warning:', err);
-        // Don't fail on warnings
+        if (err.code === 'ENOENT') {
+          console.warn('Source file not found warning during zip creation.'); 
+        }
       });
-      
-      archive.on('error', (err: Error) => {
+
+      archive.on('error', (err) => {
         console.error('Zip creation error:', err);
         if (!res.headersSent) {
           res.status(500).json({ message: 'Error creating zip file: ' + err.message });
         }
+        // Ensure output stream is closed on error to prevent leaks
+        output.end(); 
+        // Attempt to remove partially created zip file
+        fs.unlink(zipFilePath, (unlinkErr) => {
+            if (unlinkErr && unlinkErr.code !== 'ENOENT') console.error('Error removing failed zip file:', unlinkErr);
+        });
       });
-      
+
       // Pipe archive data to the output file
       archive.pipe(output);
-      
-      console.log("EMERGENCY FIX: Creating emergency audio files for segments");
+
       let addedFiles = 0;
-      
-      // For each request ID, create an emergency audio file
+      const errors = [];
+
+      // Process each requested segment ID
       for (const rawId of rawIds) {
+        let segmentId: number | null = null;
+        
         try {
-          let segmentId: number = 0;
-          
-          // Parse the ID
+          // Parse the ID robustly
           if (typeof rawId === 'number') {
             segmentId = rawId;
           } else if (typeof rawId === 'string') {
             if (rawId.includes('Segment_')) {
               const match = rawId.match(/Segment_(\d+)/i);
-              if (match && match[1]) {
-                segmentId = parseInt(match[1], 10);
-              }
+              segmentId = match && match[1] ? parseInt(match[1], 10) : null;
             } else {
               const parsedNum = parseInt(rawId, 10);
-              if (!isNaN(parsedNum)) {
-                segmentId = parsedNum;
-              }
+              segmentId = !isNaN(parsedNum) ? parsedNum : null;
             }
           }
-          
-          if (segmentId <= 0) {
-            console.log(`Invalid segment ID: ${rawId}, skipping`);
+
+          if (segmentId === null || segmentId <= 0) {
+            console.warn(`Invalid or unparseable segment ID: ${rawId}, skipping`);
+            errors.push({ id: rawId, error: "Invalid ID format" });
+            continue;
+          }
+
+          console.log(`Processing segment ID: ${segmentId}`);
+
+          // Get audio segment details from storage
+          const segment = await storage.getAudioSegmentById(segmentId);
+
+          if (!segment || !segment.segmentPath) {
+            console.warn(`Segment or segment path not found for ID: ${segmentId}`);
+            errors.push({ id: segmentId, error: "Segment data or file path not found" });
             continue;
           }
           
-          console.log(`EMERGENCY FIX: Processing segment ID: ${segmentId}`);
-          
-          // Create an emergency audio file for this segment
-          const emergencyFilePath = path.join(emergencyDir, `segment_${segmentId}.mp3`);
-          
-          // Create file if it doesn't exist (simple dummy MP3 content)
-          if (!fs.existsSync(emergencyFilePath)) {
-            console.log(`Creating emergency file for segment ${segmentId}: ${emergencyFilePath}`);
-            try {
-              // Create a minimal MP3 file
-              await fsPromises.writeFile(emergencyFilePath, "EMERGENCY AUDIO FILE", 'utf8');
-            } catch (fileError) {
-              console.error(`Error creating emergency file for segment ${segmentId}:`, fileError);
-            }
-          }
-          
-          // Add file to archive
-          if (fs.existsSync(emergencyFilePath)) {
-            console.log(`Adding emergency file for segment ${segmentId} to zip`);
-            
-            // Add to zip
-            const audioFilename = `Segment_${segmentId}.mp3`;
-            archive.file(emergencyFilePath, { name: audioFilename });
+          // Construct the full path to the segment file
+          // Assuming segmentPath is relative to the 'segments' directory or absolute
+          const actualFilePath = path.isAbsolute(segment.segmentPath) 
+            ? segment.segmentPath 
+            : path.join(segmentsDir, segment.segmentPath); // Adjust if segmentPath is stored differently
+
+          console.log(`Checking for segment file at: ${actualFilePath}`);
+
+          // Check if the actual audio file exists
+          if (existsSync(actualFilePath)) {
+            // Determine a user-friendly filename for the archive
+            const archiveFileName = `Segment_${segmentId}${path.extname(actualFilePath) || '.mp3'}`; // Use original extension or default
+            console.log(`Adding file ${actualFilePath} to zip as ${archiveFileName}`);
+            archive.file(actualFilePath, { name: archiveFileName });
             addedFiles++;
           } else {
-            console.error(`Failed to create emergency file for segment ${segmentId}`);
+            console.warn(`Audio file not found at path: ${actualFilePath} for segment ID: ${segmentId}`);
+            errors.push({ id: segmentId, error: `Audio file not found at ${actualFilePath}` });
           }
-        } catch (idError) {
-          console.error(`Error processing ID ${rawId}:`, idError);
+        } catch (error: any) {
+          console.error(`Error processing ID ${rawId} (parsed as ${segmentId}):`, error);
+          errors.push({ id: rawId, error: error.message || "Unknown processing error" });
         }
       }
-      
-      // If no files were added, add a dummy file so the zip isn't empty
-      if (addedFiles === 0) {
-        console.log("EMERGENCY FIX: No files were added, adding a dummy file");
-        const dummyContent = "This is a dummy audio file created as a placeholder.";
-        archive.append(dummyContent, { name: 'dummy_segment.mp3' });
-      }
-      
-      // Include a README.txt file with information about the segments
-      const readmeContent = `Audio Segments Export (EMERGENCY MODE)
-Generated: ${new Date().toISOString()}
-Number of segments: ${addedFiles}
 
-This ZIP was created in emergency mode, which creates placeholder files for all requested segments.
+      // If no files were successfully added, report error
+      if (addedFiles === 0) {
+        console.warn("No valid audio files found or added to the archive.");
+        archive.abort(); // Abort zip creation
+        output.end(); // Close the stream
+         // Ensure temporary zip file is removed if it exists
+        fs.unlink(zipFilePath, (unlinkErr) => {
+            if (unlinkErr && unlinkErr.code !== 'ENOENT') console.error('Error removing empty/failed zip file:', unlinkErr);
+        });
+        return res.status(404).json({ 
+          message: "No audio files found for the provided segment IDs.",
+          errors: errors.length > 0 ? errors : undefined 
+        });
+      }
+
+      // Include a README.txt file with information about the export
+      const readmeContent = `Audio Segments Export
+Generated: ${new Date().toISOString()}
+Number of segments included: ${addedFiles}
+Total requested: ${rawIds.length}
+${errors.length > 0 ? `Errors encountered: ${errors.length}\\n${JSON.stringify(errors, null, 2)}` : ''}
+
+This ZIP archive contains the audio files for the requested segments.
 `;
       archive.append(readmeContent, { name: 'README.txt' });
-      
-      // Finalize the archive
-      console.log("EMERGENCY FIX: Finalizing zip archive");
-      archive.finalize();
-      
+
+      // Finalize the archive (this triggers the 'close' event on the output stream)
+      console.log("Finalizing zip archive...");
+      await archive.finalize();
+
     } catch (error: any) {
-      console.error('EMERGENCY FIX: Download error:', error);
-      res.status(500).json({ message: error.message || 'Server error creating download' });
+      console.error('Unhandled error during audio segment download:', error);
+      // Ensure response is sent only once
+      if (!res.headersSent) {
+        res.status(500).json({ message: error.message || 'An unexpected server error occurred' });
+      }
     }
   });
 
