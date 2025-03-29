@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 type NavItem = {
   href: string;
@@ -107,25 +108,31 @@ export function Sidebar() {
         <h1 className="text-gray-900 dark:text-gray-100 font-semibold text-lg ml-3">
           <span className="text-primary-600 dark:text-primary-500">Hassaniya</span> Transcription
         </h1>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </div>
 
-      {/* Sidebar Container */}
+      {/* Sidebar Container - Modified to always be visible on desktop */}
       <div 
         className={cn(
           "fixed inset-y-0 left-0 w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 transition-all duration-300 z-20 shadow-md",
-          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+          isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0" // Only hide on mobile
         )}
       >
         <div className="flex items-center justify-between px-6 h-20 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
           <h1 className="text-xl font-bold truncate">
             <span className="text-primary-600 dark:text-primary-500">Hassaniya</span> Transcription
           </h1>
-          <button 
-            onClick={() => setIsMobileMenuOpen(false)}
-            className="md:hidden rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
-          >
-            <X className="w-6 h-6" />
-          </button>
+          <div className="flex items-center space-x-1">
+            <ThemeToggle />
+            <button 
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="md:hidden rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
         </div>
         
         <nav className="mt-6 px-4">
