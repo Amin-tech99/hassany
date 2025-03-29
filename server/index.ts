@@ -57,16 +57,9 @@ app.use((req, res, next) => {
       serveStatic(app);
     }
 
-    // Use environment port (for Render deployment) or fallback to 5001
-    const port = process.env.PORT ? parseInt(process.env.PORT) : 5001;
-    console.log(`Starting server on port ${port}`);
-    
-    server.listen({
-      port,
-      host: "0.0.0.0",
-    }, () => {
-      log(`serving on port ${port}`);
-    });
+    // Optional: Log that the server setup is complete if needed
+    console.log("Server setup complete. Listening handled within registerRoutes.");
+
   } catch (error) {
     console.error("Failed to start server:", error);
     process.exit(1);
