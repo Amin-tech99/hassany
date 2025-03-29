@@ -1101,5 +1101,275 @@ ${segmentsData.map(s => `- ${s.filename}`).join('\n')}
     }
   });
 
+  // Debug endpoint to check segment storage and file system
+  app.get("/api/debug/segments/:id", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const segmentId = parseInt(req.params.id);
+      console.log(`Debug request for segment ${segmentId}`);
+      
+      // Collection point for all data
+      const debugData: any = {
+        segmentId,
+        storageLookup: null,
+        fileSystemChecks: [],
+        reconstructionAttempts: []
+      };
+      
+      // 1. Try direct storage lookup
+      const segment = await storage.getAudioSegmentById(segmentId);
+      debugData.storageLookup = segment 
+        ? { found: true, path: segment.segmentPath, exists: fs.existsSync(segment.segmentPath) }
+        : { found: false };
+      
+      // 2. Check uploads directory structure
+      const uploadsDir = path.join(process.cwd(), "uploads");
+      const segmentsDir = path.join(uploadsDir, "segments");
+      
+      debugData.directories = {
+        uploadsExists: fs.existsSync(uploadsDir),
+        segmentsDirExists: fs.existsSync(segmentsDir),
+        uploadsDirContent: fs.existsSync(uploadsDir) ? await fsPromises.readdir(uploadsDir) : [],
+        segmentsDirContent: fs.existsSync(segmentsDir) ? await fsPromises.readdir(segmentsDir) : []
+      };
+      
+      // 3. Search for file_X directories
+      if (fs.existsSync(segmentsDir)) {
+        const fileIdDirs = await fsPromises.readdir(segmentsDir);
+        debugData.fileIdDirectories = [];
+        
+        for (const dir of fileIdDirs) {
+          if (dir.startsWith('file_')) {
+            const fileDir = path.join(segmentsDir, dir);
+            if ((await fsPromises.stat(fileDir)).isDirectory()) {
+              try {
+                const files = await fsPromises.readdir(fileDir);
+                const matchingFiles = files.filter(file => 
+                  file.includes(`segment_${segmentId}`) || 
+                  file.includes(`_${segmentId}.`) || 
+                  file.includes(`${segmentId}_`)
+                );
+                
+                debugData.fileIdDirectories.push({
+                  directory: dir,
+                  path: fileDir,
+                  fileCount: files.length,
+                  matchingFiles,
+                  hasMatchingFiles: matchingFiles.length > 0
+                });
+                
+                // If matching files found, record full paths
+                for (const file of matchingFiles) {
+                  const fullPath = path.join(fileDir, file);
+                  debugData.fileSystemChecks.push({
+                    path: fullPath,
+                    exists: fs.existsSync(fullPath)
+                  });
+                }
+              } catch (err) {
+                debugData.fileIdDirectories.push({
+                  directory: dir,
+                  path: fileDir,
+                  error: err instanceof Error ? err.message : String(err)
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      // 4. Try path reconstruction from segment path if available
+      if (segment && segment.segmentPath) {
+        const fileName = path.basename(segment.segmentPath);
+        debugData.originalFilename = fileName;
+        
+        // Check if it's directly accessible
+        debugData.reconstructionAttempts.push({
+          attempt: "Original path",
+          path: segment.segmentPath,
+          exists: fs.existsSync(segment.segmentPath)
+        });
+        
+        // Try different segment directory structures
+        const patterns = [
+          path.join(segmentsDir, fileName),
+          path.join(segmentsDir, `segment_${segmentId}.mp3`),
+          path.join(segmentsDir, `segment_${segmentId}.wav`)
+        ];
+        
+        // Check each audio file directory for the segment
+        if (fs.existsSync(segmentsDir)) {
+          const dirs = await fsPromises.readdir(segmentsDir);
+          for (const dir of dirs) {
+            if (dir.startsWith('file_')) {
+              const audioFileDir = path.join(segmentsDir, dir);
+              if ((await fsPromises.stat(audioFileDir)).isDirectory()) {
+                patterns.push(path.join(audioFileDir, fileName));
+                patterns.push(path.join(audioFileDir, `segment_${segmentId}.mp3`));
+                patterns.push(path.join(audioFileDir, `segment_${segmentId}.wav`));
+              }
+            }
+          }
+        }
+        
+        // Check all patterns
+        for (const patternPath of patterns) {
+          debugData.reconstructionAttempts.push({
+            attempt: "Pattern check",
+            path: patternPath,
+            exists: fs.existsSync(patternPath)
+          });
+        }
+      }
+      
+      // 5. Try the comprehensive search function
+      try {
+        const diskPath = await findSegmentFile(segmentId);
+        debugData.comprehensiveSearch = {
+          found: !!diskPath,
+          path: diskPath,
+          exists: diskPath ? fs.existsSync(diskPath) : false
+        };
+      } catch (err) {
+        debugData.comprehensiveSearch = {
+          error: err instanceof Error ? err.message : String(err)
+        };
+      }
+      
+      // Return all debug data
+      res.json(debugData);
+    } catch (error: any) {
+      console.error(`Debug endpoint error:`, error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Client debug utility to get file paths
+  app.get("/api/debug/directories", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const rootDir = process.cwd();
+      const uploadsDir = path.join(rootDir, "uploads");
+      const segmentsDir = path.join(uploadsDir, "segments");
+      const exportsDir = path.join(uploadsDir, "exports");
+      
+      const directoryInfo = {
+        rootDir,
+        rootExists: fs.existsSync(rootDir),
+        rootContents: fs.existsSync(rootDir) ? await fsPromises.readdir(rootDir) : [],
+        uploadsDir,
+        uploadsExists: fs.existsSync(uploadsDir),
+        uploadsContents: fs.existsSync(uploadsDir) ? await fsPromises.readdir(uploadsDir) : [],
+        segmentsDir,
+        segmentsExists: fs.existsSync(segmentsDir),
+        segmentsContents: fs.existsSync(segmentsDir) ? await fsPromises.readdir(segmentsDir) : [],
+        exportsDir,
+        exportsExists: fs.existsSync(exportsDir),
+        exportsContents: fs.existsSync(exportsDir) ? await fsPromises.readdir(exportsDir) : [],
+        environment: {
+          platform: process.platform,
+          nodeVersion: process.version,
+          env: process.env.NODE_ENV || 'development'
+        }
+      };
+      
+      res.json(directoryInfo);
+    } catch (error: any) {
+      console.error(`Directory debug endpoint error:`, error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  // Fix to directly create segment files in the expected location for testing
+  app.post("/api/debug/create-test-segment", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      const { segmentId } = req.body;
+      if (!segmentId || typeof segmentId !== 'number') {
+        return res.status(400).json({ message: "Valid segmentId is required" });
+      }
+      
+      // Create all necessary directories
+      await ensureDirectoriesExist();
+      
+      // Create test audio directories
+      const segmentsDir = path.join(process.cwd(), "uploads", "segments");
+      const testFileDir = path.join(segmentsDir, `file_test`);
+      
+      if (!fs.existsSync(testFileDir)) {
+        await fsPromises.mkdir(testFileDir, { recursive: true });
+      }
+      
+      // Create a simple test audio file (1 second of silence)
+      const testAudioPath = path.join(testFileDir, `segment_${segmentId}.mp3`);
+      
+      // Check if we need to create the file
+      if (!fs.existsSync(testAudioPath)) {
+        try {
+          // Simple solution: copy an existing MP3 file if available
+          const existingFiles = await fsPromises.readdir(segmentsDir);
+          let sourcePath = null;
+          
+          // Find an existing MP3 file to copy
+          for (const dir of existingFiles) {
+            if (dir.startsWith('file_')) {
+              const dirPath = path.join(segmentsDir, dir);
+              if ((await fsPromises.stat(dirPath)).isDirectory()) {
+                const files = await fsPromises.readdir(dirPath);
+                const mp3File = files.find(f => f.endsWith('.mp3'));
+                if (mp3File) {
+                  sourcePath = path.join(dirPath, mp3File);
+                  break;
+                }
+              }
+            }
+          }
+          
+          if (sourcePath && fs.existsSync(sourcePath)) {
+            // Copy the existing file
+            await fsPromises.copyFile(sourcePath, testAudioPath);
+          } else {
+            // If no source file, create an empty file
+            await fsPromises.writeFile(testAudioPath, "TEST AUDIO FILE", 'utf8');
+          }
+        } catch (err) {
+          console.error(`Failed to create test audio file:`, err);
+          return res.status(500).json({ message: `Failed to create test audio file: ${err}` });
+        }
+      }
+      
+      // Create or update segment in storage
+      let segment = await storage.getAudioSegmentById(segmentId);
+      
+      if (segment) {
+        // Update existing segment with correct path
+        segment = await storage.updateAudioSegment(segmentId, {
+          segmentPath: testAudioPath
+        });
+      } else {
+        // Create new segment
+        segment = await storage.createAudioSegment({
+          audioFileId: 999, // Test file ID
+          segmentPath: testAudioPath,
+          startTime: 0,
+          endTime: 1000, // 1 second
+          duration: 1000,
+          status: 'available',
+          assignedTo: null,
+          transcribedBy: null,
+          reviewedBy: null
+        });
+      }
+      
+      res.json({
+        success: true,
+        message: "Test segment created successfully",
+        segment,
+        path: testAudioPath,
+        exists: fs.existsSync(testAudioPath)
+      });
+    } catch (error: any) {
+      console.error(`Create test segment error:`, error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return createServer(app);
 }

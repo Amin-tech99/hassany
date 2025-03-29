@@ -41,6 +41,7 @@ interface AudioSegmentUpdate {
   assignedTo?: number | null;
   transcribedBy?: number | null;
   reviewedBy?: number | null;
+  segmentPath?: string;
 }
 
 interface RecentActivity {
@@ -284,6 +285,7 @@ export class MemStorage implements IStorage {
       ...(updates.assignedTo !== undefined && { assignedTo: updates.assignedTo }),
       ...(updates.transcribedBy !== undefined && { transcribedBy: updates.transcribedBy }),
       ...(updates.reviewedBy !== undefined && { reviewedBy: updates.reviewedBy }),
+      ...(updates.segmentPath && { segmentPath: updates.segmentPath }),
       updatedAt: new Date(),
     };
     
