@@ -1890,5 +1890,141 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
     }
   });
 
+  // Add endpoint to export all processed audio files for download (before cleanup)
+  app.get("/api/audio/export-all", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Get all audio files with processed status that haven't been cleaned up
+      const audioFilesMap = await storage.getAllAudioFiles();
+      const audioFiles = Array.from(audioFilesMap.values())
+        .filter(file => file.status === "processed");
+      
+      if (audioFiles.length === 0) {
+        return res.status(404).json({ message: "No processed audio files available for export" });
+      }
+      
+      // Create necessary directories
+      const uploadsDir = path.join(process.cwd(), "uploads");
+      const exportsDir = path.join(uploadsDir, "exports");
+      
+      if (!existsSync(exportsDir)) {
+        await fs.promises.mkdir(exportsDir, { recursive: true });
+      }
+      
+      // Create a timestamp for the zip filename
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const zipFilename = `all_audio_files_${timestamp}.zip`;
+      const zipFilePath = path.join(exportsDir, zipFilename);
+      
+      console.log(`Creating export zip file at: ${zipFilePath}`);
+      
+      // Create a write stream for the zip file
+      const output = fs.createWriteStream(zipFilePath);
+      const archive = archiver('zip', {
+        zlib: { level: 9 } // Maximum compression
+      });
+      
+      // Set up event listeners
+      output.on('close', () => {
+        console.log(`Zip archive created: ${archive.pointer()} total bytes`);
+        
+        // Send the zip file as download
+        res.download(zipFilePath, zipFilename, (err) => {
+          if (err) {
+            console.error('Download error:', err);
+            if (!res.headersSent) {
+              res.status(500).json({ message: err.message });
+            }
+          }
+          
+          // Remove the temporary zip file after sending
+          setTimeout(() => {
+            try {
+              fs.unlink(zipFilePath, (unlinkErr) => {
+                if (unlinkErr) console.error('Error removing temp zip file:', unlinkErr);
+              });
+            } catch (unlinkError) {
+              console.error("Error removing zip file:", unlinkError);
+            }
+          }, 5000); // Give a 5 second delay to ensure download starts
+        });
+      });
+      
+      archive.on('error', (err) => {
+        console.error('Zip creation error:', err);
+        if (!res.headersSent) {
+          res.status(500).json({ message: 'Error creating zip file: ' + err.message });
+        }
+      });
+      
+      // Pipe archive data to the output file
+      archive.pipe(output);
+      
+      // Track stats for README
+      const fileStats = {
+        totalFiles: 0,
+        totalSegments: 0,
+        missingFiles: 0,
+        fileList: [] as string[]
+      };
+      
+      // Add original files and their segments to the archive
+      for (const file of audioFiles) {
+        try {
+          // Check if original file exists
+          if (file.originalPath && existsSync(file.originalPath)) {
+            const origFilename = `original/${file.filename}`;
+            archive.file(file.originalPath, { name: origFilename });
+            fileStats.fileList.push(origFilename);
+            fileStats.totalFiles++;
+          } else {
+            console.log(`Original file missing for audio ID ${file.id}: ${file.filename}`);
+            fileStats.missingFiles++;
+          }
+          
+          // Get segments for this file
+          const segments = await storage.getAudioSegmentsByFileId(file.id);
+          
+          // Create a directory for this file's segments in the zip
+          for (const segment of segments) {
+            if (existsSync(segment.segmentPath)) {
+              const segmentFilename = `segments/file_${file.id}/segment_${segment.id}.mp3`;
+              archive.file(segment.segmentPath, { name: segmentFilename });
+              fileStats.fileList.push(segmentFilename);
+              fileStats.totalSegments++;
+            } else {
+              console.log(`Segment file missing: ${segment.segmentPath}`);
+              fileStats.missingFiles++;
+            }
+          }
+        } catch (fileError) {
+          console.error(`Error processing file ${file.id}:`, fileError);
+        }
+      }
+      
+      // Add a README file with information
+      const readmeContent = `Audio Files Export
+Generated: ${new Date().toISOString()}
+Total original files: ${fileStats.totalFiles}
+Total segments: ${fileStats.totalSegments}
+Missing files: ${fileStats.missingFiles}
+
+This archive contains all processed audio files from the Hassaniya Transcriber application.
+Original files are in the 'original' directory, and segments are in the 'segments/file_X' directories.
+
+Files included:
+${fileStats.fileList.slice(0, 50).join('\n')}
+${fileStats.fileList.length > 50 ? `\n...and ${fileStats.fileList.length - 50} more files` : ''}
+`;
+      
+      archive.append(readmeContent, { name: 'README.txt' });
+      
+      // Finalize the archive
+      archive.finalize();
+    } catch (error: any) {
+      console.error('Export error:', error);
+      res.status(500).json({ message: error.message || 'Server error creating export' });
+    }
+  });
+
   return createServer(app);
 }
