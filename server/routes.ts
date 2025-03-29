@@ -278,22 +278,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/segments/:id/audio", isAuthenticated, async (req, res) => {
+    const segmentId = parseInt(req.params.id);
+    console.log(`Audio download request for segment ID: ${segmentId}`);
+    
     try {
-      // At this point, req.user is already set by isAuthenticated middleware
-      const segmentId = parseInt(req.params.id);
       const segment = await storage.getAudioSegmentById(segmentId);
       
       if (!segment) {
+        console.error(`Segment not found for ID: ${segmentId}`);
         return res.status(404).json({ message: "Segment not found" });
       }
       
       // Verify access rights
       const audioFile = await storage.getAudioFileById(segment.audioFileId);
       if (!audioFile) {
+        console.error(`Associated audio file not found for segment ID: ${segmentId}`);
         return res.status(404).json({ message: "Associated audio file not found" });
       }
       
-      // Check if user can access this segment
       const canAccess = 
         req.user!.role === "admin" || 
         audioFile.uploadedBy === req.user!.id || 
@@ -302,18 +304,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
         segment.reviewedBy === req.user!.id;
       
       if (!canAccess) {
+        console.warn(`User ${req.user!.id} (${req.user!.role}) forbidden access to segment ${segmentId}`);
         return res.status(403).json({ message: "You don't have access to this segment" });
       }
       
-      // Log successful access
-      console.log(`User ${req.user!.username} accessing audio segment ${segmentId}`);
+      // --- File Path Validation ---
+      const segmentPath = segment.segmentPath;
+      if (!segmentPath) {
+        console.error(`Segment ${segmentId} is missing segmentPath in database.`);
+        return res.status(500).json({ message: "Segment path information is missing." });
+      }
       
-      // Serve the audio file
-      res.sendFile(segment.segmentPath, { root: "/" });
+      // Ensure the path is absolute or resolve it relative to a known base directory
+      // Assuming segmentPath is stored relative to the project root or uploads dir
+      const absolutePath = path.resolve(segmentPath); // Use path.resolve for robustness
+      
+      console.log(`Attempting to serve file from path: ${absolutePath}`);
+      
+      // Check if the file actually exists on the server filesystem
+      if (!fs.existsSync(absolutePath)) {
+        console.error(`Audio file not found on disk at path: ${absolutePath} for segment ${segmentId}`);
+        // Optionally, try reconstructing known paths if applicable, or just fail
+        return res.status(404).json({ message: "Audio file not found on server." });
+      }
+      
+      // --- Use res.download() ---
+      console.log(`User ${req.user!.id} authorized. Sending file: ${absolutePath}`);
+      const filename = path.basename(absolutePath); // Extract filename for download prompt
+      
+      res.download(absolutePath, filename, (err) => {
+        if (err) {
+          // Handle errors that occur *after* headers may have been sent
+          console.error(`Error during file download transmission for segment ${segmentId}:`, err);
+          // Avoid sending another response if headers are already sent
+          if (!res.headersSent) {
+             res.status(500).json({ message: "Error sending the audio file." });
+          }
+        } else {
+          console.log(`Successfully sent file ${filename} for segment ${segmentId}`);
+        }
+      });
       
     } catch (error: any) {
-      console.error(`Error serving audio segment ${req.params.id}:`, error);
-      res.status(500).json({ message: error.message });
+      console.error(`Unexpected error serving audio segment ${segmentId}:`, error);
+      if (!res.headersSent) {
+        res.status(500).json({ message: error.message || "Internal server error processing audio request." });
+      }
     }
   });
 
