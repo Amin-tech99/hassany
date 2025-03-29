@@ -57,7 +57,7 @@ export function CleanupStorage() {
     }
   };
   
-  const handleDownloadAll = async () => {
+  const handleDownloadAll = () => {
     try {
       setIsDownloading(true);
       
@@ -66,39 +66,27 @@ export function CleanupStorage() {
         description: "Creating archive of all audio files. This may take a moment...",
       });
       
-      // Use the apiRequest function to properly handle authentication
-      const response = await apiRequest("GET", "/api/audio/export-all");
+      // Use direct browser navigation for download (most reliable across browsers)
+      // The auth token is in cookies/localStorage so it will be included
+      window.location.href = "/api/audio/export-all";
       
-      // Get the blob content
-      const blob = await response.blob();
-      
-      // Create a download link for the blob
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      
-      // Set attributes for download
-      link.href = url;
-      link.download = `audio-files-${new Date().toISOString().slice(0, 10)}.zip`;
-      
-      // Add to document, trigger click, then remove
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Success message
-      toast({
-        title: "Download Started",
-        description: "Your audio files are being downloaded now."
-      });
+      // Set a timeout to reset the downloading state after a reasonable time
+      setTimeout(() => {
+        setIsDownloading(false);
+        
+        toast({
+          title: "Download Started",
+          description: "Your audio files should be downloading now. Check your browser's download area."
+        });
+      }, 3000);
       
     } catch (error) {
+      setIsDownloading(false);
       toast({
         title: "Download Failed",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
-    } finally {
-      setIsDownloading(false);
     }
   };
   
