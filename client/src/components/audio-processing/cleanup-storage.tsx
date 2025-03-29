@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,22 @@ export function CleanupStorage() {
   const queryClient = useQueryClient();
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const downloadFrameRef = useRef<HTMLIFrameElement>(null);
+  
+  // This ensures authentication is maintained for downloads
+  useEffect(() => {
+    // Create a dummy request to keep session alive
+    const keepSessionAlive = async () => {
+      try {
+        await apiRequest("GET", "/api/user/current");
+      } catch (error) {
+        console.error("Error refreshing session:", error);
+      }
+    };
+    
+    // Call once when component mounts
+    keepSessionAlive();
+  }, []);
   
   const cleanupMutation = useMutation({
     mutationFn: async () => {
@@ -66,44 +82,38 @@ export function CleanupStorage() {
         description: "Creating archive of all audio files. This may take a moment...",
       });
       
-      // Use the apiRequest function to properly handle authentication
-      const response = await apiRequest("GET", "/api/audio/export-all");
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to download audio files");
+      // Use a hidden iframe to handle the download with credentials
+      // This works better than the blob approach because it maintains the session
+      if (downloadFrameRef.current) {
+        // Set the src to the export endpoint
+        downloadFrameRef.current.src = "/api/audio/export-all";
+        
+        // Show a success message after a delay to allow download to start
+        setTimeout(() => {
+          setIsDownloading(false);
+          toast({
+            title: "Download Started",
+            description: "If the download didn't start automatically, please check your browser settings."
+          });
+        }, 5000);
+      } else {
+        throw new Error("Download frame not available");
       }
       
-      // Get the blob content
-      const blob = await response.blob();
-      
-      // Create a download link for the blob
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      
-      // Set attributes for download
-      link.href = url;
-      link.download = `audio-files-${new Date().toISOString().slice(0, 10)}.zip`;
-      
-      // Add to document, trigger click, then remove
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Success message
-      toast({
-        title: "Download Started",
-        description: "Your audio files are being downloaded now."
-      });
-      
     } catch (error) {
+      setIsDownloading(false);
       toast({
         title: "Download Failed",
         description: error instanceof Error ? error.message : "Unknown error occurred",
         variant: "destructive",
       });
-    } finally {
-      setIsDownloading(false);
+      
+      // Log additional debug information
+      console.error("Download error details:", {
+        error,
+        cookiesPresent: document.cookie.length > 0,
+        iframeRef: downloadFrameRef.current ? "Available" : "Not available"
+      });
     }
   };
   
@@ -142,6 +152,13 @@ export function CleanupStorage() {
             </Alert>
           </div>
         )}
+        
+        {/* Hidden iframe for downloads */}
+        <iframe 
+          ref={downloadFrameRef} 
+          style={{ display: 'none' }} 
+          title="download-frame"
+        />
       </CardContent>
       <CardFooter className="flex justify-end space-x-2 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-b-lg">
         {!showConfirm && (
