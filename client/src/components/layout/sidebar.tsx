@@ -97,37 +97,39 @@ export function Sidebar() {
   return (
     <>
       {/* Mobile Header */}
-      <div className="sticky top-0 z-10 md:hidden bg-gradient-to-r from-slate-900 to-slate-800 flex items-center h-16 px-4 shadow-md">
+      <div className="sticky top-0 z-10 md:hidden bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center h-16 px-4 shadow-sm">
         <button 
           onClick={() => setIsMobileMenuOpen(true)} 
-          className="text-white hover:bg-slate-700 rounded p-1 focus:outline-none"
+          className="text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded p-2 focus:outline-none"
         >
-          <Menu className="h-6 w-6" />
+          <Menu className="h-5 w-5" />
         </button>
-        <h1 className="text-white font-bold text-lg ml-4">Hassaniya Transcription</h1>
+        <h1 className="text-gray-900 dark:text-gray-100 font-semibold text-lg ml-3">
+          <span className="text-primary-600 dark:text-primary-500">Hassaniya</span> Transcription
+        </h1>
       </div>
 
       {/* Sidebar Container */}
       <div 
         className={cn(
-          "fixed inset-y-0 left-0 w-72 bg-gradient-to-b from-slate-900 to-slate-800 text-white transition-all duration-300 z-20 shadow-xl",
+          "fixed inset-y-0 left-0 w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 text-gray-800 dark:text-gray-200 transition-all duration-300 z-20 shadow-md",
           isMobileMenuOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        <div className="flex items-center justify-between px-6 h-20 border-b border-slate-700 bg-gradient-to-r from-slate-900 to-slate-800">
-          <h1 className="text-xl font-bold truncate text-white">
-            <span className="text-primary-500">Hassaniya</span> Transcription
+        <div className="flex items-center justify-between px-6 h-20 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+          <h1 className="text-xl font-bold truncate">
+            <span className="text-primary-600 dark:text-primary-500">Hassaniya</span> Transcription
           </h1>
           <button 
             onClick={() => setIsMobileMenuOpen(false)}
-            className="md:hidden rounded-full p-1 hover:bg-slate-700 text-white"
+            className="md:hidden rounded-full p-1 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
           >
             <X className="w-6 h-6" />
           </button>
         </div>
         
         <nav className="mt-6 px-4">
-          <div className="space-y-2">
+          <div className="space-y-1">
             {navItems.map((item) => {
               // Skip admin-only items for non-admins
               if (item.adminOnly && !isAdmin) return null;
@@ -142,13 +144,13 @@ export function Sidebar() {
                 >
                   <a
                     className={cn(
-                      "flex items-center px-5 py-3 text-sm font-medium rounded-lg transition-all duration-200",
+                      "flex items-center px-4 py-2.5 text-sm font-medium rounded-md transition-all duration-200",
                       isActive 
-                        ? "bg-slate-700 text-white font-bold shadow-md" 
-                        : "text-slate-300 hover:bg-slate-700/60 hover:text-white"
+                        ? "bg-primary-50 dark:bg-primary-900/20 text-primary-600 dark:text-primary-400 font-semibold" 
+                        : "text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800/60 hover:text-gray-900 dark:hover:text-white"
                     )}
                   >
-                    <span className={item.color || "text-white"}>
+                    <span className={isActive ? "text-primary-600 dark:text-primary-400" : item.color || "text-gray-500 dark:text-gray-400"}>
                       {item.icon}
                     </span>
                     {item.label}
@@ -159,29 +161,29 @@ export function Sidebar() {
           </div>
         </nav>
         
-        <div className="absolute bottom-0 w-full border-t border-slate-700 bg-slate-800/80 backdrop-blur-sm">
-          <div className="px-6 py-5">
+        <div className="absolute bottom-0 w-full border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
+          <div className="px-6 py-4">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-medium text-base shadow-md">
+                <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary-500 to-primary-700 flex items-center justify-center text-white font-medium text-base shadow-sm">
                   {userInitials}
                 </div>
               </div>
-              <div className="ml-4">
-                <div className="text-sm font-semibold text-white">{user.fullName}</div>
-                <div className="text-xs text-slate-300">{getRoleDisplay(user.role)}</div>
+              <div className="ml-3">
+                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{user.fullName}</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">{getRoleDisplay(user.role)}</div>
               </div>
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className="ml-auto rounded-lg hover:bg-slate-700/80 p-2" 
+                className="ml-auto rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 p-2" 
                 onClick={handleLogout}
                 disabled={logoutMutation.isPending}
               >
                 {logoutMutation.isPending ? (
-                  <span className="h-5 w-5 animate-spin text-white">⟳</span>
+                  <span className="h-5 w-5 animate-spin text-gray-500 dark:text-gray-400">⟳</span>
                 ) : (
-                  <LogOut className="h-5 w-5 text-red-400" />
+                  <LogOut className="h-5 w-5 text-red-500 dark:text-red-400" />
                 )}
               </Button>
             </div>

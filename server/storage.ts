@@ -492,6 +492,7 @@ export class MemStorage implements IStorage {
     const segments = Array.from(this.audioSegments.values());
     const user = this.users.get(userId);
     const isAdmin = user?.role === 'admin';
+    const isTranscriber = user?.role === 'transcriber';
     
     // Count assigned tasks (tasks assigned to this user that aren't completed)
     const assigned = segments.filter(s => 
@@ -499,27 +500,42 @@ export class MemStorage implements IStorage {
       s.status !== "reviewed"
     ).length;
     
-    // Count completed tasks (segments this user has transcribed that are reviewed)
-    const completed = segments.filter(s => {
-      // For admin, show all completed tasks
-      if (isAdmin) {
-        return s.status === "reviewed";
-      }
-      // For regular users, show tasks they've worked on that are completed
-      return (s.transcribedBy === userId || s.reviewedBy === userId) && 
-             s.status === "reviewed";
-    }).length;
-    
-    // Count pending review (segments with status "transcribed" that this user can review)
+    // Count pending review tasks
     const pendingReview = segments.filter(s => {
-      if (s.status !== "transcribed") return false;
+      // For transcribers, count segments they've transcribed that are waiting for review
+      if (isTranscriber) {
+        return s.transcribedBy === userId && s.status === "transcribed";
+      }
+      
+      // For reviewers, count segments with status "transcribed" that they're assigned to review
+      if (user?.role === "reviewer" && s.status === "transcribed") {
+        return s.reviewedBy === userId;
+      }
       
       // For admin, show all pending reviews
-      if (isAdmin) return true;
+      if (isAdmin && s.status === "transcribed") {
+        return true;
+      }
       
-      // For reviewers, show segments assigned to them for review
-      return s.reviewedBy === userId;
+      return false;
     }).length;
+    
+    // Count completed tasks
+    const completed = segments.filter(s => {
+      // For all users, include segments they've worked on that are reviewed
+      if (s.status === "reviewed") {
+        if (isAdmin) {
+          return true; // For admin, show all completed tasks
+        }
+        
+        // For transcribers and reviewers, include segments they've worked on
+        return s.transcribedBy === userId || s.reviewedBy === userId;
+      }
+      
+      return false;
+    }).length;
+    
+    console.log(`Task summary for user ${userId} (${user?.role}):`, { assigned, pendingReview, completed });
     
     return {
       assigned,
