@@ -19,6 +19,7 @@ export function CleanupStorage() {
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const downloadFrameRef = useRef<HTMLIFrameElement>(null);
+  const formRef = useRef<HTMLFormElement>(null);
   const [showBackupOption, setShowBackupOption] = useState(false);
   
   // This ensures authentication is maintained for downloads
@@ -84,20 +85,19 @@ export function CleanupStorage() {
         description: "Creating archive of all audio files. This may take a moment...",
       });
       
-      // Use a hidden iframe to handle the download with credentials
+      // Method 1: Use the iframe approach first
       if (downloadFrameRef.current) {
-        // Set the src to the export endpoint
         console.log("Starting download via iframe...");
         downloadFrameRef.current.src = "/api/audio/export-all";
         
-        // After a delay, show a backup option if the download didn't start
+        // Show backup option after a short delay
         setTimeout(() => {
           setIsDownloading(false);
           setShowBackupOption(true);
           
           toast({
-            title: "Download Started",
-            description: "If the download didn't start automatically, use the 'Direct Download' button below.",
+            title: "Download Initiated",
+            description: "If the download didn't start automatically, please use one of the backup options below.",
           });
         }, 7000);
       } else {
@@ -124,9 +124,56 @@ export function CleanupStorage() {
     }
   };
   
-  const handleDirectDownload = () => {
-    // Open the export endpoint in a new tab
-    window.open("/api/audio/export-all", "_blank");
+  const handleFormDownload = () => {
+    // Submit the form to trigger download with authentication
+    if (formRef.current) {
+      formRef.current.submit();
+    }
+  };
+  
+  const handleDirectDownload = async () => {
+    try {
+      setIsDownloading(true);
+      
+      toast({
+        title: "Preparing Direct Download",
+        description: "Requesting audio files directly...",
+      });
+      
+      // Use the authenticated apiRequest function to fetch the ZIP file as a blob
+      const response = await apiRequest("GET", "/api/audio/export-all");
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || "Failed to download audio files");
+      }
+      
+      // Create a blob URL from the response and trigger download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `audio-export-${new Date().toISOString().slice(0, 10)}.zip`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Download Started",
+        description: "Your audio files are being downloaded now."
+      });
+      
+    } catch (error) {
+      toast({
+        title: "Direct Download Failed",
+        description: error instanceof Error ? error.message : "Unknown error occurred",
+        variant: "destructive",
+      });
+      
+      console.error("Direct download error:", error);
+    } finally {
+      setIsDownloading(false);
+    }
   };
   
   return (
@@ -166,18 +213,41 @@ export function CleanupStorage() {
             {showBackupOption && (
               <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900 mt-4">
                 <ExternalLink className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <AlertTitle className="text-green-600 dark:text-green-400">Direct Download Option</AlertTitle>
-                <AlertDescription className="text-green-700 dark:text-green-300">
-                  <p className="mb-2">If the automatic download didn't start, try the direct download:</p>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleDirectDownload}
-                    className="bg-green-100 hover:bg-green-200 dark:bg-green-800 dark:hover:bg-green-700 border-green-300 dark:border-green-700"
-                  >
-                    <ExternalLink className="mr-2 h-4 w-4" />
-                    Open in New Tab
-                  </Button>
+                <AlertTitle className="text-green-600 dark:text-green-400">Download Options</AlertTitle>
+                <AlertDescription className="text-green-700 dark:text-green-300 space-y-4">
+                  <p>If the automatic download didn't start, try one of these alternative methods:</p>
+                  
+                  <div className="flex space-x-2 flex-wrap">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleFormDownload}
+                      className="mt-2 bg-green-100 hover:bg-green-200 dark:bg-green-800 dark:hover:bg-green-700 border-green-300 dark:border-green-700"
+                    >
+                      <Download className="mr-2 h-4 w-4" />
+                      Form Method
+                    </Button>
+                    
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      onClick={handleDirectDownload}
+                      disabled={isDownloading}
+                      className="mt-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-800 dark:hover:bg-blue-700 border-blue-300 dark:border-blue-700"
+                    >
+                      {isDownloading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Downloading...
+                        </>
+                      ) : (
+                        <>
+                          <ExternalLink className="mr-2 h-4 w-4" />
+                          Direct Method
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </AlertDescription>
               </Alert>
             )}
@@ -190,6 +260,15 @@ export function CleanupStorage() {
           style={{ display: 'none' }} 
           title="download-frame"
         />
+        
+        {/* Hidden form for authenticated download */}
+        <form 
+          ref={formRef}
+          method="POST"
+          action="/api/audio/download-form"
+          target="_blank"
+          style={{ display: 'none' }}
+        ></form>
       </CardContent>
       <CardFooter className="flex justify-end space-x-2 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-b-lg">
         {!showConfirm && (

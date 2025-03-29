@@ -2130,5 +2130,113 @@ If the archive is empty, it means no audio files were found.`;
     }
   });
 
+  // Form-based download endpoint for audio exports (maintains authentication)
+  app.post("/api/audio/download-form", isAuthenticated, isAdmin, async (req, res) => {
+    console.log("=====================================");
+    console.log("FORM-BASED AUDIO EXPORT CALLED", new Date().toISOString());
+    console.log("Authentication Headers:", req.headers.authorization ? "Authorization Present" : "Authentication Missing");
+    console.log("Cookie Headers:", req.headers.cookie ? "Cookies Present" : "Cookies Missing");
+    console.log("User Object:", req.user ? `ID: ${req.user.id}, Role: ${req.user.role}` : "No User Object");
+    console.log("=====================================");
+    
+    try {
+      // Prepare directories
+      const uploadsDir = path.join(__dirname, "..", "uploads");
+      const segmentsDir = path.join(uploadsDir, "segments");
+      const exportsDir = path.join(uploadsDir, "exports");
+      const timestamp = new Date().getTime();
+      const tempDir = path.join(exportsDir, `temp_${timestamp}`);
+      
+      // Ensure directories exist
+      for (const dir of [uploadsDir, segmentsDir, exportsDir, tempDir]) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      
+      const zipFilename = `audio_export_${timestamp}.zip`;
+      const zipPath = path.join(exportsDir, zipFilename);
+      
+      console.log("Form-based export: Creating zip at", zipPath);
+      
+      // Create the README content to include in the zip
+      const readmeContent = `Audio Export (Form Method)
+Generated: ${new Date().toISOString()}
+User: ${req.user ? req.user.username : "Unknown"}
+
+This archive contains all processed audio files and segments.
+`;
+      
+      // Create a text file with the README content
+      fs.writeFileSync(path.join(tempDir, "README.txt"), readmeContent);
+      
+      // Create a simple HTML page that will redirect to the export endpoint
+      const htmlContent = `
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Audio Export</title>
+  <meta http-equiv="refresh" content="1;url=/api/audio/export-all">
+  <script>
+    // Try to redirect using JavaScript as well
+    window.onload = function() {
+      window.location.href = '/api/audio/export-all';
+    }
+  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 100px;
+    }
+    .spinner {
+      border: 6px solid #f3f3f3;
+      border-top: 6px solid #3498db;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1.5s linear infinite;
+      margin: 20px auto;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .download-link {
+      margin-top: 20px;
+    }
+    .download-link a {
+      color: #3498db;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <h2>Preparing Audio Export</h2>
+  <div class="spinner"></div>
+  <p>Your download should start automatically...</p>
+  <p class="download-link">
+    If the download doesn't start, <a href="/api/audio/export-all">click here</a>.
+  </p>
+</body>
+</html>
+`;
+      
+      // Set the response as HTML
+      res.setHeader('Content-Type', 'text/html');
+      res.send(htmlContent);
+      
+    } catch (error) {
+      console.error("Form-based export error:", error);
+      res.status(500).send(`
+        <html>
+          <body>
+            <h1>Export Error</h1>
+            <p>An error occurred while preparing the export: ${error instanceof Error ? error.message : String(error)}</p>
+            <p><a href="/">Return to home page</a></p>
+          </body>
+        </html>
+      `);
+    }
+  });
+
   return createServer(app);
 }
