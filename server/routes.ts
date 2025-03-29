@@ -2266,5 +2266,175 @@ You can then use this data with Whisper's fine-tuning scripts.
     }
   });
 
+  // Export all audio for backup
+  app.get("/api/audio/export-all", requireAuth, async (req, res) => {
+    console.log("Export all audio endpoint called");
+    console.log(`User: ${req.user?.id} (${req.user?.role})`);
+    
+    try {
+      if (!req.user || req.user.role !== "admin") {
+        console.log("Unauthorized access attempt to export endpoint");
+        return res.status(403).json({ error: "Unauthorized access" });
+      }
+
+      const uploadsDir = path.join(__dirname, "..", "uploads");
+      const segmentsDir = path.join(uploadsDir, "segments");
+      const exportsDir = path.join(uploadsDir, "exports");
+      
+      // Create temporary directory with timestamp to avoid conflicts
+      const timestamp = new Date().getTime();
+      const tempDir = path.join(exportsDir, `temp_${timestamp}`);
+      
+      console.log("Setting up directories:");
+      console.log(`- uploadsDir: ${uploadsDir}`);
+      console.log(`- segmentsDir: ${segmentsDir}`);
+      console.log(`- exportsDir: ${exportsDir}`);
+      console.log(`- tempDir: ${tempDir}`);
+
+      // Create directories if they don't exist
+      await fs.promises.mkdir(uploadsDir, { recursive: true });
+      await fs.promises.mkdir(segmentsDir, { recursive: true });
+      await fs.promises.mkdir(exportsDir, { recursive: true });
+      await fs.promises.mkdir(tempDir, { recursive: true });
+
+      const zipPath = path.join(exportsDir, `audio_export_${timestamp}.zip`);
+      console.log(`Creating zip file at: ${zipPath}`);
+      
+      const zipFile = fs.createWriteStream(zipPath);
+      const zip = archiver("zip", {
+        zlib: { level: 9 } // Maximum compression
+      });
+
+      // Listen for warnings
+      zip.on("warning", function(err) {
+        if (err.code === "ENOENT") {
+          console.warn("Archive warning:", err);
+        } else {
+          console.error("Archive error:", err);
+          throw err;
+        }
+      });
+
+      // Listen for errors
+      zip.on("error", function(err) {
+        console.error("Archive error:", err);
+        throw err;
+      });
+
+      // Pipe the zip to the file stream
+      zip.pipe(zipFile);
+
+      try {
+        // Get all audio files that have been processed
+        console.log("Retrieving processed audio files");
+        const files = await storage.getAllAudioFiles();
+        const processedFiles = files.filter(file => file.status === "processed");
+        console.log(`Found ${processedFiles.length} processed audio files`);
+
+        // Get all segments
+        console.log("Retrieving all audio segments");
+        const segments = await storage.getAllSegments();
+        console.log(`Found ${segments.length} total segments`);
+
+        let addedFiles = 0;
+
+        // Add original processed audio files
+        for (const file of processedFiles) {
+          if (file.processedPath) {
+            try {
+              const filePath = path.join(__dirname, "..", file.processedPath);
+              if (fs.existsSync(filePath)) {
+                const fileName = path.basename(filePath);
+                console.log(`Adding processed file: ${fileName}`);
+                zip.file(filePath, { name: `processed/${fileName}` });
+                addedFiles++;
+              } else {
+                console.log(`Processed file not found: ${filePath}`);
+              }
+            } catch (error) {
+              console.error(`Error adding processed file ${file.id}:`, error);
+            }
+          }
+        }
+
+        // Add all segment files
+        for (const segment of segments) {
+          try {
+            if (segment.segmentPath) {
+              const segmentPath = path.join(__dirname, "..", segment.segmentPath);
+              if (fs.existsSync(segmentPath)) {
+                const fileName = path.basename(segmentPath);
+                console.log(`Adding segment file: ${fileName}`);
+                zip.file(segmentPath, { name: `segments/${fileName}` });
+                addedFiles++;
+              } else {
+                console.log(`Segment file not found: ${segmentPath}`);
+              }
+            }
+          } catch (error) {
+            console.error(`Error adding segment ${segment.id}:`, error);
+          }
+        }
+
+        // Add a dummy file if no files were added to prevent empty zip
+        if (addedFiles === 0) {
+          console.log("No files found, adding dummy file");
+          const dummyFile = path.join(tempDir, "no_files.txt");
+          await fs.promises.writeFile(dummyFile, "No audio files were found to export.");
+          zip.file(dummyFile, { name: "no_files.txt" });
+        }
+
+        console.log(`Finalizing zip with ${addedFiles} files`);
+        await zip.finalize();
+
+        console.log("Zip file created successfully");
+        
+        // Clean up temp directory
+        fs.rmSync(tempDir, { recursive: true, force: true });
+        
+        // Send the file
+        res.download(zipPath, `audio_export_${timestamp}.zip`, (err) => {
+          if (err) {
+            console.error("Error sending zip file:", err);
+            // Don't delete the zip file on error so we can debug
+            return;
+          }
+          
+          // Delete the zip file after sending
+          console.log("Zip file sent, cleaning up");
+          setTimeout(() => {
+            try {
+              fs.unlinkSync(zipPath);
+              console.log("Zip file deleted");
+            } catch (error) {
+              console.error("Error deleting zip file:", error);
+            }
+          }, 1000);
+        });
+      } catch (error) {
+        console.error("Error creating archive:", error);
+        // Clean up temp directory on error
+        try {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        } catch (cleanupError) {
+          console.error("Error cleaning up temp directory:", cleanupError);
+        }
+        
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        const stack = error instanceof Error ? error.stack : undefined;
+        
+        res.status(500).json({ 
+          error: "Failed to create export", 
+          details: errorMessage,
+          stack: process.env.NODE_ENV !== 'production' ? stack : undefined
+        });
+      }
+    } catch (error) {
+      console.error("Error in export endpoint:", error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      res.status(500).json({ error: "Failed to process export request", details: errorMessage });
+    }
+  });
+
   return createServer(app);
 }

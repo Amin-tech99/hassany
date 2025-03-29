@@ -317,7 +317,7 @@ export class MemStorage implements IStorage {
   }
 
   async getAllSegments(): Promise<AudioSegment[]> {
-    // Return all audio segments regardless of status
+    console.log(`Getting all audio segments. Total segments: ${this.audioSegments.size}`);
     return Array.from(this.audioSegments.values());
   }
 
