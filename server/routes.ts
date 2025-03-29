@@ -949,9 +949,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
           // Get audio segment details from storage
           const segment = await storage.getAudioSegmentById(segmentId);
+          
+          // --- Add more detailed logging here ---
+          console.log(`[DEBUG] Segment data for ID ${segmentId}:`, JSON.stringify(segment, null, 2));
 
           if (!segment || !segment.segmentPath) {
             console.warn(`Segment or segment path not found for ID: ${segmentId}`);
+            // --- Add detail to the warning ---
+            console.warn(`[DEBUG] Segment found: ${!!segment}, Segment path: ${segment?.segmentPath}`);
             errors.push({ id: segmentId, error: "Segment data or file path not found" });
             continue;
           }
@@ -962,6 +967,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ? segment.segmentPath 
             : path.join(segmentsDir, segment.segmentPath); // Adjust if segmentPath is stored differently
 
+          // --- Log the path being checked ---
+          console.log(`[DEBUG] Constructed file path for segment ${segmentId}: ${actualFilePath}`);
           console.log(`Checking for segment file at: ${actualFilePath}`);
 
           // Check if the actual audio file exists
