@@ -9,7 +9,6 @@ import TranscriptionsPage from "@/pages/transcriptions-page";
 import AudioProcessingPage from "@/pages/audio-processing-page";
 import TeamManagementPage from "@/pages/team-management-page";
 import ExportDataPage from "@/pages/export-data-page";
-import VerificationPage from "@/pages/verification-page";
 import { ProtectedRoute } from "./lib/protected-route";
 import { AuthProvider } from "./hooks/use-auth";
 
@@ -22,7 +21,6 @@ function Router() {
       <ProtectedRoute path="/transcriptions/:id" component={TranscriptionsPage} />
       <ProtectedRoute path="/audio-processing" component={AudioProcessingPage} />
       <ProtectedRoute path="/team" component={TeamManagementPage} adminOnly={true} />
-      <ProtectedRoute path="/verification" component={VerificationPage} adminOnly={true} />
       <ProtectedRoute path="/export" component={ExportDataPage} adminOnly={true} />
       <Route path="*" component={NotFound} />
     </Switch>
@@ -34,8 +32,8 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <Router />
+        <Toaster />
       </AuthProvider>
-      <Toaster />
     </QueryClientProvider>
   );
 }
