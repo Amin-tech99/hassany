@@ -1893,10 +1893,14 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
   // Add endpoint to export all processed audio files for download (before cleanup)
   app.get("/api/audio/export-all", isAuthenticated, isAdmin, async (req, res) => {
     try {
+      console.log("Starting audio export process...");
+      
       // Get all audio files with processed status that haven't been cleaned up
       const audioFilesMap = await storage.getAllAudioFiles();
       const audioFiles = Array.from(audioFilesMap.values())
         .filter(file => file.status === "processed");
+      
+      console.log(`Found ${audioFiles.length} processed audio files for export`);
       
       if (audioFiles.length === 0) {
         return res.status(404).json({ message: "No processed audio files available for export" });
@@ -1905,9 +1909,14 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
       // Create necessary directories
       const uploadsDir = path.join(process.cwd(), "uploads");
       const exportsDir = path.join(uploadsDir, "exports");
+      const tempDir = path.join(exportsDir, "temp");
       
-      if (!existsSync(exportsDir)) {
-        await fs.promises.mkdir(exportsDir, { recursive: true });
+      // Ensure all directories exist
+      for (const dir of [uploadsDir, exportsDir, tempDir]) {
+        if (!existsSync(dir)) {
+          await fs.promises.mkdir(dir, { recursive: true });
+          console.log(`Created directory: ${dir}`);
+        }
       }
       
       // Create a timestamp for the zip filename
@@ -1942,6 +1951,11 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
               fs.unlink(zipFilePath, (unlinkErr) => {
                 if (unlinkErr) console.error('Error removing temp zip file:', unlinkErr);
               });
+              
+              // Clean up temp directory
+              fs.rmdir(tempDir, { recursive: true }, (rmdirErr) => {
+                if (rmdirErr) console.error('Error removing temp directory:', rmdirErr);
+              });
             } catch (unlinkError) {
               console.error("Error removing zip file:", unlinkError);
             }
@@ -1949,7 +1963,11 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
         });
       });
       
-      archive.on('error', (err) => {
+      archive.on('warning', (err: Error) => {
+        console.warn('Zip warning:', err);
+      });
+      
+      archive.on('error', (err: Error) => {
         console.error('Zip creation error:', err);
         if (!res.headersSent) {
           res.status(500).json({ message: 'Error creating zip file: ' + err.message });
@@ -1963,6 +1981,7 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
       const fileStats = {
         totalFiles: 0,
         totalSegments: 0,
+        placeholderFiles: 0,
         missingFiles: 0,
         fileList: [] as string[]
       };
@@ -1970,29 +1989,59 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
       // Add original files and their segments to the archive
       for (const file of audioFiles) {
         try {
+          console.log(`Processing audio file ID ${file.id}: ${file.filename}`);
+          
           // Check if original file exists
           if (file.originalPath && existsSync(file.originalPath)) {
             const origFilename = `original/${file.filename}`;
             archive.file(file.originalPath, { name: origFilename });
             fileStats.fileList.push(origFilename);
             fileStats.totalFiles++;
+            console.log(`Added original file: ${file.originalPath}`);
           } else {
-            console.log(`Original file missing for audio ID ${file.id}: ${file.filename}`);
-            fileStats.missingFiles++;
+            console.log(`Original file missing for audio ID ${file.id}: ${file.filename}. Creating placeholder.`);
+            
+            // Create a placeholder file
+            const placeholderPath = path.join(tempDir, `original_${file.id}.mp3`);
+            const placeholderContent = `This is a placeholder for the original audio file ${file.filename} (ID: ${file.id}) which could not be found.`;
+            await fs.promises.writeFile(placeholderPath, placeholderContent);
+            
+            // Add to zip
+            const origFilename = `original/${file.filename} (PLACEHOLDER)`;
+            archive.file(placeholderPath, { name: origFilename });
+            fileStats.fileList.push(origFilename);
+            fileStats.placeholderFiles++;
           }
           
           // Get segments for this file
           const segments = await storage.getAudioSegmentsByFileId(file.id);
+          console.log(`Found ${segments.length} segments for file ID ${file.id}`);
           
           // Create a directory for this file's segments in the zip
           for (const segment of segments) {
-            if (existsSync(segment.segmentPath)) {
-              const segmentFilename = `segments/file_${file.id}/segment_${segment.id}.mp3`;
-              archive.file(segment.segmentPath, { name: segmentFilename });
-              fileStats.fileList.push(segmentFilename);
-              fileStats.totalSegments++;
-            } else {
-              console.log(`Segment file missing: ${segment.segmentPath}`);
+            try {
+              if (existsSync(segment.segmentPath)) {
+                const segmentFilename = `segments/file_${file.id}/segment_${segment.id}.mp3`;
+                archive.file(segment.segmentPath, { name: segmentFilename });
+                fileStats.fileList.push(segmentFilename);
+                fileStats.totalSegments++;
+                console.log(`Added segment file: ${segment.segmentPath}`);
+              } else {
+                console.log(`Segment file missing: ${segment.segmentPath}. Creating placeholder.`);
+                
+                // Create a placeholder segment file
+                const placeholderPath = path.join(tempDir, `segment_${segment.id}.mp3`);
+                const placeholderContent = `This is a placeholder for segment ID ${segment.id} which could not be found.`;
+                await fs.promises.writeFile(placeholderPath, placeholderContent);
+                
+                // Add to zip
+                const segmentFilename = `segments/file_${file.id}/segment_${segment.id}.mp3 (PLACEHOLDER)`;
+                archive.file(placeholderPath, { name: segmentFilename });
+                fileStats.fileList.push(segmentFilename);
+                fileStats.placeholderFiles++;
+              }
+            } catch (segmentError) {
+              console.error(`Error processing segment ${segment.id}:`, segmentError);
               fileStats.missingFiles++;
             }
           }
@@ -2006,19 +2055,25 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
 Generated: ${new Date().toISOString()}
 Total original files: ${fileStats.totalFiles}
 Total segments: ${fileStats.totalSegments}
+Placeholder files: ${fileStats.placeholderFiles}
 Missing files: ${fileStats.missingFiles}
 
 This archive contains all processed audio files from the Hassaniya Transcriber application.
 Original files are in the 'original' directory, and segments are in the 'segments/file_X' directories.
+
+Note: Some audio files may be placeholders if the original files were not found.
+These files are marked with "(PLACEHOLDER)" in their filename.
 
 Files included:
 ${fileStats.fileList.slice(0, 50).join('\n')}
 ${fileStats.fileList.length > 50 ? `\n...and ${fileStats.fileList.length - 50} more files` : ''}
 `;
       
+      console.log("Adding README to zip file");
       archive.append(readmeContent, { name: 'README.txt' });
       
       // Finalize the archive
+      console.log("Finalizing zip archive...");
       archive.finalize();
     } catch (error: any) {
       console.error('Export error:', error);
