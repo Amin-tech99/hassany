@@ -3,7 +3,8 @@ import {
   audioFiles, type AudioFile, type InsertAudioFile, 
   audioSegments, type AudioSegment, type InsertAudioSegment, 
   transcriptions, type Transcription, type InsertTranscription, 
-  exports, type Export, type InsertExport 
+  exports, type Export, type InsertExport,
+  transcriptionVerifications, type TranscriptionVerification
 } from "@shared/schema";
 import { scrypt, randomBytes } from "crypto";
 import { promisify } from "util";
@@ -104,6 +105,16 @@ export interface IStorage {
   
   // Session store
   sessionStore: session.SessionStore;
+
+  // New methods for cross-validation
+  createTranscriptionVerification(data: TranscriptionVerification): Promise<TranscriptionVerification>;
+  getTranscriptionVerifications(transcriptionId: number): Promise<TranscriptionVerification[]>;
+  getUserVerification(transcriptionId: number, userId: number): Promise<TranscriptionVerification | undefined>;
+  getVerificationCountForTranscription(transcriptionId: number): Promise<number>;
+  updateTranscriptionVerificationStatus(transcriptionId: number): Promise<Transcription>;
+
+  // Add the transcription lookup by ID method
+  getTranscriptionById(id: number): Promise<Transcription | undefined>;
 }
 
 export class MemStorage implements IStorage {
@@ -112,6 +123,7 @@ export class MemStorage implements IStorage {
   private audioSegments: Map<number, AudioSegment>;
   private transcriptions: Map<number, Transcription>;
   private exports: Map<number, Export>;
+  private transcriptionVerifications: Map<number, TranscriptionVerification>;
   sessionStore: session.SessionStore;
   currentUserId: number;
   currentAudioFileId: number;
@@ -125,6 +137,7 @@ export class MemStorage implements IStorage {
     this.audioSegments = new Map();
     this.transcriptions = new Map();
     this.exports = new Map();
+    this.transcriptionVerifications = new Map();
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000, // prune expired entries every 24h
     });
@@ -412,7 +425,7 @@ export class MemStorage implements IStorage {
 
   async getVerifiedTranscriptions(startDate?: string, endDate?: string): Promise<FormattedTranscription[]> {
     const verified = Array.from(this.transcriptions.values())
-      .filter(t => t.status === "approved")
+      .filter(t => t.status === "approved" || t.status === "cross_validated")
       .filter(t => {
         if (!startDate && !endDate) return true;
         
@@ -442,6 +455,8 @@ export class MemStorage implements IStorage {
           endTime: segment?.endTime,
           speaker: "unknown", // Placeholder, would be populated from real data
           confidence: 0.95, // Placeholder, would be populated from real data
+          verificationCount: t.verificationCount || 0,
+          verified: t.status === "cross_validated"
         };
       })
     );
@@ -541,6 +556,85 @@ export class MemStorage implements IStorage {
     });
     
     return activities;
+  }
+
+  // Implementation of new methods for cross-validation
+  async createTranscriptionVerification(data: TranscriptionVerification): Promise<TranscriptionVerification> {
+    const id = this.getNextId(this.transcriptionVerifications);
+    const verification: TranscriptionVerification = {
+      id,
+      ...data,
+      createdAt: new Date(),
+    };
+    this.transcriptionVerifications.set(id, verification);
+    
+    // Update verification count on the transcription
+    const transcription = await this.getTranscriptionById(data.transcriptionId);
+    if (transcription) {
+      const verifications = await this.getTranscriptionVerifications(data.transcriptionId);
+      await this.updateTranscription(transcription.id, {
+        verificationCount: verifications.length,
+      });
+      
+      // Check if we have enough verifications to update the status
+      await this.updateTranscriptionVerificationStatus(data.transcriptionId);
+    }
+    
+    return verification;
+  }
+
+  async getTranscriptionVerifications(transcriptionId: number): Promise<TranscriptionVerification[]> {
+    return Array.from(this.transcriptionVerifications.values())
+      .filter(v => v.transcriptionId === transcriptionId);
+  }
+
+  async getUserVerification(transcriptionId: number, userId: number): Promise<TranscriptionVerification | undefined> {
+    return Array.from(this.transcriptionVerifications.values())
+      .find(v => v.transcriptionId === transcriptionId && v.userId === userId);
+  }
+
+  async getVerificationCountForTranscription(transcriptionId: number): Promise<number> {
+    const verifications = await this.getTranscriptionVerifications(transcriptionId);
+    return verifications.length;
+  }
+  
+  async updateTranscriptionVerificationStatus(transcriptionId: number): Promise<Transcription> {
+    const transcription = await this.getTranscriptionById(transcriptionId);
+    if (!transcription) {
+      throw new Error("Transcription not found");
+    }
+    
+    const verifications = await this.getTranscriptionVerifications(transcriptionId);
+    const verificationCount = verifications.length;
+    
+    let newStatus = transcription.status;
+    
+    // Update transcription status based on verification count and results
+    if (verificationCount >= transcription.requiredVerifications) {
+      // Check if all verifications approved
+      const allApproved = verifications.every(v => v.verified);
+      
+      if (allApproved) {
+        newStatus = "cross_validated";
+      } else {
+        // If any rejection, set to rejected
+        newStatus = "rejected";
+      }
+    } else {
+      // Not enough verifications yet
+      newStatus = "pending_cross_validation";
+    }
+    
+    // Update the transcription status
+    return this.updateTranscription(transcription.id, {
+      status: newStatus,
+      verificationCount
+    });
+  }
+
+  // Implement the new method
+  async getTranscriptionById(id: number): Promise<Transcription | undefined> {
+    return this.transcriptions.get(id);
   }
 }
 

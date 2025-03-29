@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { cn } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
 
 interface TranscriptionModalProps {
   segmentId: number | null;
@@ -38,6 +39,11 @@ export function TranscriptionModal({
   const [approvalStatus, setApprovalStatus] = useState<"approve" | "needs_revision" | null>(null);
   const [rating, setRating] = useState<number | null>(null);
   const [reviewNotes, setReviewNotes] = useState("");
+  const [verificationStatus, setVerificationStatus] = useState<{
+    count: number;
+    required: number;
+    verifiers: string[];
+  }>({ count: 0, required: 4, verifiers: [] });
   
   // Make sure admin and reviewer roles can verify transcriptions
   const isReviewer = user?.role === "reviewer" || user?.role === "admin";
@@ -54,13 +60,21 @@ export function TranscriptionModal({
       setTranscriptionText(segmentData.transcription?.text || "");
       setNotes(segmentData.transcription?.notes || "");
       
+      // Set verification status
+      setVerificationStatus({
+        count: segmentData.transcription?.verificationCount || 0,
+        required: segmentData.transcription?.requiredVerifications || 4,
+        verifiers: segmentData.transcription?.verifiers || []
+      });
+      
       // Reset approval state and rating when loading a new segment
       if (isReviewer) {
         setRating(segmentData.transcription?.rating || null);
         setReviewNotes(segmentData.transcription?.reviewNotes || "");
         
         // Initialize approval status based on current transcription status
-        if (segmentData.transcription?.status === "approved") {
+        if (segmentData.transcription?.status === "approved" || 
+            segmentData.transcription?.status === "cross_validated") {
           setApprovalStatus("approve");
         } else if (segmentData.transcription?.status === "rejected") {
           setApprovalStatus("needs_revision");
@@ -83,7 +97,7 @@ export function TranscriptionModal({
       
       // For transcribers submitting work (not reviewers)
       if (!isReviewer) {
-        payload.status = "pending_review";
+        payload.status = "pending_cross_validation";
       }
       
       // If user is a reviewer, include review data
@@ -214,6 +228,50 @@ export function TranscriptionModal({
           <>
             {/* Audio Player */}
             <AudioPlayer audioUrl={segmentData?.audioUrl || ""} />
+            
+            {/* Cross-Validation Status */}
+            {segmentData?.transcription && (
+              <div className="space-y-2 mt-4 rounded-md bg-slate-50 p-3">
+                <h3 className="text-sm font-semibold text-slate-700">Cross-Validation Progress</h3>
+                <div className="flex items-center justify-between text-xs text-slate-600">
+                  <span>Validations: {verificationStatus.count} of {verificationStatus.required}</span>
+                  <span className={
+                    segmentData.transcription.status === "cross_validated" 
+                      ? "text-green-600 font-medium" 
+                      : "text-amber-600 font-medium"
+                  }>
+                    {segmentData.transcription.status === "cross_validated" 
+                      ? "Fully Validated"
+                      : segmentData.transcription.status === "rejected"
+                        ? "Rejected"
+                        : "Pending Validation"}
+                  </span>
+                </div>
+                <Progress 
+                  value={(verificationStatus.count / verificationStatus.required) * 100} 
+                  className={
+                    segmentData.transcription.status === "cross_validated"
+                      ? "bg-green-100"
+                      : segmentData.transcription.status === "rejected"
+                        ? "bg-red-100"
+                        : "bg-amber-100"
+                  }
+                  indicatorClassName={
+                    segmentData.transcription.status === "cross_validated"
+                      ? "bg-green-600"
+                      : segmentData.transcription.status === "rejected"
+                        ? "bg-red-600"
+                        : "bg-amber-600"
+                  }
+                />
+                {verificationStatus.verifiers.length > 0 && (
+                  <div className="text-xs text-slate-600 mt-1">
+                    <span className="font-medium">Verified by: </span>
+                    {verificationStatus.verifiers.join(", ")}
+                  </div>
+                )}
+              </div>
+            )}
             
             {/* Transcription Input */}
             <div className="mt-4">
