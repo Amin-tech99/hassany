@@ -1,10 +1,12 @@
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { format } from "date-fns";
 import { Loader2, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAudioProcessor } from "@/hooks/use-audio-processor";
 import { Progress } from "@/components/ui/progress";
+import { useToast } from "@/hooks/use-toast";
 
 interface AudioFile {
   id: number;
@@ -18,6 +20,8 @@ interface AudioFile {
 
 export function ProcessingQueue() {
   const { cancelProcessing, isCancelling } = useAudioProcessor();
+  const { toast } = useToast();
+  const [downloadingSegmentId, setDownloadingSegmentId] = useState<number | null>(null);
   
   const { data: audioFiles, isLoading } = useQuery<AudioFile[]>({
     queryKey: ["/api/audio"],
@@ -75,6 +79,83 @@ export function ProcessingQueue() {
   // Handle cancel processing
   const handleCancelProcessing = (fileId: number) => {
     cancelProcessing(fileId);
+  };
+  
+  // Handle download segments
+  const handleDownloadSegments = async (fileId: number, filename: string) => {
+    setDownloadingSegmentId(fileId);
+    try {
+      // Get the token from localStorage
+      const token = localStorage.getItem('auth_token');
+      if (!token) {
+        throw new Error('Authentication failed: Please log in again');
+      }
+
+      const response = await fetch(`/api/audio/${fileId}/segments/download`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+      });
+
+      if (!response.ok) {
+        let errorMsg = `Download failed: ${response.statusText || 'Server error'}`;
+        try {
+            const errorData = await response.json();
+            errorMsg = errorData.message || errorMsg; 
+        } catch (e) {
+            // If response is not JSON, use the status text
+        }
+        console.error('Download error response status:', response.status);
+        throw new Error(errorMsg);
+      }
+
+      const blob = await response.blob();
+      
+      // Try to get filename from Content-Disposition, fallback to a generated name
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let downloadFilename = `segments_audio_file_${fileId}.zip`; // Default
+      if (contentDisposition) {
+        const filenameRegex = /filename[^;=\n]*=((['"])(.*?)\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(contentDisposition);
+        if (matches != null && matches[3]) {
+          downloadFilename = matches[3];
+        } else {
+          // Handle filename*=UTF-8'' format
+          const utf8FilenameRegex = /filename\*\s*=\s*UTF-8''(.*?)(?:;|$)/i;
+          const utf8Matches = utf8FilenameRegex.exec(contentDisposition);
+          if (utf8Matches != null && utf8Matches[1]) {
+            try {
+               downloadFilename = decodeURIComponent(utf8Matches[1]);
+            } catch (e) {
+               console.warn("Failed to decode UTF-8 filename");
+            }
+          }
+        }
+      }
+      
+      // Create a download link and trigger download
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = downloadFilename;
+      document.body.appendChild(link);
+      link.click();
+      
+      // Clean up
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+
+    } catch (error: any) {
+      console.error('Segment download error:', error);
+      toast({
+        title: "Segment Download Failed",
+        description: error.message || "Failed to download the segment archive. Please try again.",
+        variant: "destructive"
+      });
+    } finally {
+      setDownloadingSegmentId(null);
+    }
   };
   
   return (
@@ -153,15 +234,18 @@ export function ProcessingQueue() {
                             ) : file.status.toLowerCase() === "processed" ? (
                               <div className="flex justify-end space-x-2">
                                 <Button
-                                  asChild
                                   variant="outline"
                                   size="sm"
+                                  onClick={() => handleDownloadSegments(file.id, file.filename)}
+                                  aria-label={`Download segments for ${file.filename}`}
+                                  title="Download Segments"
+                                  disabled={downloadingSegmentId === file.id}
                                 >
-                                  <a href={`/api/audio/${file.id}/segments/download`}
-                                     aria-label={`Download segments for ${file.filename}`}
-                                     title="Download Segments">
+                                  {downloadingSegmentId === file.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
                                     <Download className="h-4 w-4" />
-                                  </a>
+                                  )}
                                 </Button>
                                 <Button
                                   variant="link"
