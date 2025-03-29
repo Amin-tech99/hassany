@@ -87,15 +87,20 @@ export function ProcessingQueue() {
     try {
       // Get the token from localStorage
       const token = localStorage.getItem('auth_token');
+      console.log("Retrieved token:", token);
+      
       if (!token) {
-        throw new Error('Authentication failed: Please log in again');
+        throw new Error('Authentication failed: Token not found in storage.');
       }
+
+      const requestHeaders = {
+        'Authorization': `Bearer ${token}`
+      };
+      console.log("Request headers being sent:", requestHeaders);
 
       const response = await fetch(`/api/audio/${fileId}/segments/download`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
+        headers: requestHeaders,
       });
 
       if (!response.ok) {
