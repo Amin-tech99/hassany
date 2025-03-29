@@ -1953,5 +1953,16 @@ The JSON files contain the transcribed text and timing information.
     }
   });
 
-  return createServer(app);
+  // Create the server
+  const server = createServer(app);
+  
+  // Get port from environment variable or use default
+  const PORT = process.env.PORT || 3000;
+  
+  // Start listening on the port
+  server.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+  });
+
+  return server;
 }
