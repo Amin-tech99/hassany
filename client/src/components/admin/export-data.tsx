@@ -228,45 +228,44 @@ export function ExportData() {
               </div>
             </div>
 
-            <Button
-              type="submit"
-              disabled={generateExportMutation.isPending || isGenerating}
-              className="inline-flex items-center"
-            >
-              {generateExportMutation.isPending || isGenerating ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Generating Export...
-                </>
-              ) : (
-                <>
+            <div className="flex gap-4 flex-wrap">
+              <Button
+                type="submit"
+                disabled={generateExportMutation.isPending || isGenerating}
+                className="inline-flex items-center"
+              >
+                {generateExportMutation.isPending || isGenerating ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Generating Export...
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    Generate Whisper Export
+                  </>
+                )}
+              </Button>
+
+              {/* Add Whisper Training Export Button */}
+              <a 
+                href={`/api/whisper-training-export${
+                  formValues.startDate || formValues.endDate
+                    ? `?startDate=${encodeURIComponent(formValues.startDate)}&endDate=${encodeURIComponent(formValues.endDate)}`
+                    : ''
+                }`} 
+                className="inline-block" 
+                download
+              >
+                <Button type="button" variant="outline">
                   <Download className="mr-2 h-4 w-4" />
-                  Generate Whisper Export
-                </>
-              )}
-            </Button>
+                  Whisper Training Data
+                </Button>
+              </a>
+            </div>
           </form>
         </CardContent>
       </Card>
-
-      {/* --- Add New Section for Bulk Segment Download --- */}
-      <Card className="mt-6 bg-white shadow">
-        <CardContent className="px-4 py-5 sm:p-6">
-          <h2 className="text-lg font-medium text-gray-900 mb-2">Bulk Segment Download</h2>
-          <p className="text-sm text-gray-500 mb-4">
-            Download a ZIP archive containing all processed audio segment files.
-            This can be useful for backup or offline analysis.
-          </p>
-          {/* Direct link wrapped in a Button component */}
-          <a href="/api/audio/download-all-segments" download>
-            <Button>
-              <Download className="mr-2 h-4 w-4" />
-              Download All Segments
-            </Button>
-          </a>
-        </CardContent>
-      </Card>
-      {/* --- End New Section --- */}
 
       {/* Export History */}
       <div className="mt-8">
