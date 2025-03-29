@@ -1599,72 +1599,209 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
     }
   });
   
-  // Simple download form page - NO AUTH REQUIRED
+  // Updated simple download page with multi-segment ZIP download - NO AUTH REQUIRED
   app.get("/api/simple-download", async (req, res) => {
     const html = `
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Download Multiple Segments</title>
+      <title>Download Audio Segments</title>
       <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
         h1 { color: #333; }
         .form-group { margin-bottom: 15px; }
         label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
         button { background: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
         .note { background: #f8f8f8; padding: 10px; border-left: 4px solid #4CAF50; margin: 20px 0; }
         .segments { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
-        .segment { background: #f0f0f0; padding: 10px; border-radius: 4px; cursor: pointer; margin-bottom: 10px; }
-        .segment:hover { background: #e0e0e0; }
-        .selected { background: #d4edda; border: 1px solid #4CAF50; }
-        .download-section { margin-top: 30px; }
-        .direct-links { margin-top: 20px; }
+        .segment-button { 
+          background: #f0f0f0; 
+          padding: 10px; 
+          border-radius: 4px; 
+          cursor: pointer; 
+          margin: 5px;
+          border: 1px solid #ddd;
+        }
+        .segment-button:hover { background: #e0e0e0; }
+        .segment-button.selected { background: #d4edda; border: 1px solid #4CAF50; }
+        .direct-links { 
+          margin-top: 20px; 
+          display: grid; 
+          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
+          gap: 10px; 
+        }
         .direct-link { 
           display: block; 
           background: #007bff; 
           color: white; 
-          padding: 8px 15px; 
-          margin: 8px 0; 
+          padding: 8px 8px; 
           text-decoration: none; 
           border-radius: 4px; 
           text-align: center;
+          font-size: 14px;
         }
         .direct-link:hover { background: #0069d9; }
+        .zip-download-section {
+          margin: 30px 0;
+          padding: 20px;
+          background: #e9f7ef;
+          border-radius: 8px;
+          border: 1px solid #4CAF50;
+        }
+        .zip-button {
+          background: #28a745;
+          color: white;
+          padding: 12px 20px;
+          border: none;
+          border-radius: 4px;
+          font-size: 16px;
+          cursor: pointer;
+          margin-top: 15px;
+        }
+        .zip-button:hover {
+          background: #218838;
+        }
+        .control-buttons {
+          margin-top: 15px;
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+        }
+        .btn {
+          padding: 8px 15px;
+          border-radius: 4px;
+          cursor: pointer;
+          border: none;
+        }
+        .btn-secondary {
+          background: #6c757d;
+          color: white;
+        }
+        .selection-info {
+          margin-top: 10px;
+          font-weight: bold;
+          color: #28a745;
+        }
       </style>
     </head>
     <body>
       <h1>Download Audio Segments</h1>
       
       <div class="note">
-        This is a simplified download page that allows you to download segments directly.
+        <p>This page allows you to download individual segments or multiple segments as a ZIP file.</p>
+        <p><strong>For audio with 37 segments:</strong> All segments are available for download below.</p>
       </div>
       
-      <h2>Direct Downloads</h2>
-      <p>Click on any segment below to download it directly:</p>
-      
-      <div class="direct-links">
-        <a href="/api/segments/1/direct-download" class="direct-link">Download Segment 1</a>
-        <a href="/api/segments/2/direct-download" class="direct-link">Download Segment 2</a>
-        <a href="/api/segments/3/direct-download" class="direct-link">Download Segment 3</a>
-        <a href="/api/segments/4/direct-download" class="direct-link">Download Segment 4</a>
-        <a href="/api/segments/5/direct-download" class="direct-link">Download Segment 5</a>
-        <a href="/api/segments/6/direct-download" class="direct-link">Download Segment 6</a>
-        <a href="/api/segments/7/direct-download" class="direct-link">Download Segment 7</a>
-        <a href="/api/segments/8/direct-download" class="direct-link">Download Segment 8</a>
-        <a href="/api/segments/9/direct-download" class="direct-link">Download Segment 9</a>
-        <a href="/api/segments/10/direct-download" class="direct-link">Download Segment 10</a>
-        <a href="/api/segments/11/direct-download" class="direct-link">Download Segment 11</a>
-        <a href="/api/segments/12/direct-download" class="direct-link">Download Segment 12</a>
-        <a href="/api/segments/13/direct-download" class="direct-link">Download Segment 13</a>
-        <a href="/api/segments/14/direct-download" class="direct-link">Download Segment 14</a>
-        <a href="/api/segments/15/direct-download" class="direct-link">Download Segment 15</a>
-        <a href="/api/segments/16/direct-download" class="direct-link">Download Segment 16</a>
-        <a href="/api/segments/17/direct-download" class="direct-link">Download Segment 17</a>
-        <a href="/api/segments/18/direct-download" class="direct-link">Download Segment 18</a>
-        <a href="/api/segments/19/direct-download" class="direct-link">Download Segment 19</a>
-        <a href="/api/segments/20/direct-download" class="direct-link">Download Segment 20</a>
+      <div class="zip-download-section">
+        <h2>Download Multiple Segments as ZIP</h2>
+        <p>Select the segments you want to include in your ZIP file:</p>
+        
+        <div id="segment-selector" class="segments">
+          <!-- Segment buttons will go here -->
+        </div>
+        
+        <div class="control-buttons">
+          <button id="select-all" class="btn btn-secondary">Select All</button>
+          <button id="clear-selection" class="btn btn-secondary">Clear Selection</button>
+        </div>
+        
+        <div class="selection-info" id="selection-count">0 segments selected</div>
+        
+        <div class="form-group" style="margin-top: 15px;">
+          <button id="download-zip" class="zip-button">Download Selected Segments as ZIP</button>
+        </div>
       </div>
+      
+      <h2>Direct Downloads (Individual Segments)</h2>
+      <p>Or download individual segments directly:</p>
+      
+      <div class="direct-links" id="direct-links">
+        <!-- Direct download links will be added here -->
+      </div>
+      
+      <script>
+        // Configuration - show up to 40 segments to cover all 37 segments
+        const MAX_SEGMENTS = 40;
+        
+        // DOM elements
+        const segmentSelector = document.getElementById('segment-selector');
+        const downloadZipButton = document.getElementById('download-zip');
+        const selectAllButton = document.getElementById('select-all');
+        const clearSelectionButton = document.getElementById('clear-selection');
+        const selectionCount = document.getElementById('selection-count');
+        const directLinksContainer = document.getElementById('direct-links');
+        
+        const selectedSegments = new Set();
+        
+        // Create buttons for segments 1-40
+        for (let i = 1; i <= MAX_SEGMENTS; i++) {
+          // Create segment selection buttons
+          const button = document.createElement('button');
+          button.className = 'segment-button';
+          button.textContent = i.toString();  // Just show the number
+          button.dataset.id = i.toString();
+          
+          button.addEventListener('click', function() {
+            // Toggle selection
+            if (selectedSegments.has(i)) {
+              selectedSegments.delete(i);
+              this.classList.remove('selected');
+            } else {
+              selectedSegments.add(i);
+              this.classList.add('selected');
+            }
+            updateSelectionCount();
+          });
+          
+          segmentSelector.appendChild(button);
+          
+          // Create direct download links
+          const link = document.createElement('a');
+          link.href = \`/api/segments/\${i}/direct-download\`;
+          link.className = 'direct-link';
+          link.textContent = \`Segment \${i}\`;
+          directLinksContainer.appendChild(link);
+        }
+        
+        // Update the selection count display
+        function updateSelectionCount() {
+          selectionCount.textContent = \`\${selectedSegments.size} segments selected\`;
+        }
+        
+        // Select all button
+        selectAllButton.addEventListener('click', function() {
+          for (let i = 1; i <= MAX_SEGMENTS; i++) {
+            selectedSegments.add(i);
+            document.querySelector(\`.segment-button[data-id="\${i}"]\`).classList.add('selected');
+          }
+          updateSelectionCount();
+        });
+        
+        // Clear selection button
+        clearSelectionButton.addEventListener('click', function() {
+          selectedSegments.clear();
+          document.querySelectorAll('.segment-button').forEach(btn => {
+            btn.classList.remove('selected');
+          });
+          updateSelectionCount();
+        });
+        
+        // Handle ZIP download
+        downloadZipButton.addEventListener('click', function() {
+          if (selectedSegments.size === 0) {
+            alert('Please select at least one segment to download');
+            return;
+          }
+          
+          // Build the URL with ID parameters
+          const params = Array.from(selectedSegments)
+            .map(id => 'id=' + id)
+            .join('&');
+          
+          // Navigate to the download URL
+          window.location.href = '/api/segments/zip-download?' + params;
+        });
+      </script>
     </body>
     </html>
     `;
@@ -1673,8 +1810,8 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
     res.send(html);
   });
 
-  // Create direct download endpoints for all segments (1-20) - NO AUTH REQUIRED
-  for (let i = 1; i <= 20; i++) {
+  // Create direct download endpoints for all segments (up to 40) - NO AUTH REQUIRED
+  for (let i = 1; i <= 40; i++) {
     app.get(`/api/segments/${i}/direct-download`, async (req, res) => {
       try {
         const segmentId = i;
@@ -1741,415 +1878,6 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
       }
     });
   }
-
-  // Enhanced multi-segment ZIP downloader - NO AUTH REQUIRED
-  app.get("/api/segments/zip-download", async (req, res) => {
-    try {
-      console.log("ZIP DOWNLOAD: Starting enhanced zip download for multiple segments");
-      
-      // Get segment IDs from query parameters
-      const segmentIdParams = req.query.id;
-      let segmentIds: number[] = [];
-
-      if (Array.isArray(segmentIdParams)) {
-        segmentIds = segmentIdParams
-          .map(id => {
-            if (typeof id === 'string') {
-              if (id.includes('Segment_')) {
-                const match = id.match(/Segment_(\d+)/i);
-                return match && match[1] ? parseInt(match[1], 10) : NaN;
-              }
-              return parseInt(id, 10);
-            }
-            return NaN;
-          })
-          .filter(id => !isNaN(id) && id > 0);
-      } else if (segmentIdParams) {
-        const id = segmentIdParams.toString();
-        if (id.includes('Segment_')) {
-          const match = id.match(/Segment_(\d+)/i);
-          if (match && match[1]) {
-            const parsedId = parseInt(match[1], 10);
-            if (!isNaN(parsedId) && parsedId > 0) {
-              segmentIds = [parsedId];
-            }
-          }
-        } else {
-          const parsedId = parseInt(id, 10);
-          if (!isNaN(parsedId) && parsedId > 0) {
-            segmentIds = [parsedId];
-          }
-        }
-      }
-      
-      if (segmentIds.length === 0) {
-        console.log("ZIP DOWNLOAD: No valid segment IDs provided");
-        return res.status(400).json({ message: "No valid segment IDs provided" });
-      }
-      
-      console.log("ZIP DOWNLOAD: Processing segments:", segmentIds);
-      
-      // Create all necessary directories
-      const uploadsDir = path.join(process.cwd(), "uploads");
-      const segmentsDir = path.join(uploadsDir, "segments");
-      const exportsDir = path.join(uploadsDir, "exports");
-      const enhancedDir = path.join(segmentsDir, "enhanced");
-      
-      // Ensure directories exist
-      for (const dir of [uploadsDir, segmentsDir, exportsDir, enhancedDir]) {
-        if (!existsSync(dir)) {
-          await fsPromises.mkdir(dir, { recursive: true });
-          console.log(`Created directory: ${dir}`);
-        }
-      }
-      
-      // Create a timestamped ZIP filename
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const zipFilename = `segments_${segmentIds.join("-")}_${timestamp}.zip`;
-      const zipFilePath = path.join(exportsDir, zipFilename);
-      
-      console.log(`ZIP DOWNLOAD: Creating zip at ${zipFilePath}`);
-      
-      // Create a write stream and archiver instance
-      const output = fs.createWriteStream(zipFilePath);
-      const archive = archiver('zip', {
-        zlib: { level: 9 } // Maximum compression
-      });
-      
-      // Set up event listeners
-      output.on('close', () => {
-        console.log(`ZIP DOWNLOAD: Zip created successfully, size: ${archive.pointer()} bytes`);
-        
-        // Send the file as a download
-        res.download(zipFilePath, zipFilename, (err) => {
-          if (err) {
-            console.error('Download error:', err);
-            if (!res.headersSent) {
-              res.status(500).json({ message: err.message });
-            }
-          }
-          
-          // Clean up the zip file after download (with delay)
-          setTimeout(() => {
-            try {
-              fs.unlink(zipFilePath, (unlinkErr) => {
-                if (unlinkErr) console.error(`Error removing temp zip: ${unlinkErr}`);
-              });
-            } catch (unlinkErr) {
-              console.error(`Error cleaning up zip: ${unlinkErr}`);
-            }
-          }, 5000);
-        });
-      });
-      
-      archive.on('warning', (err) => console.warn(`Zip warning: ${err}`));
-      archive.on('error', (err) => {
-        console.error(`Zip error: ${err}`);
-        if (!res.headersSent) {
-          res.status(500).json({ message: `Error creating zip: ${err.message}` });
-        }
-      });
-      
-      // Pipe archive data to the file
-      archive.pipe(output);
-      
-      // Track segments we successfully add
-      const addedSegments: { id: number; source: string; filename: string }[] = [];
-      
-      // For each segment ID, try these strategies in order:
-      // 1. Try to get from database
-      // 2. Look in various segment directories
-      // 3. Create a dummy file as last resort
-      for (const segmentId of segmentIds) {
-        console.log(`ZIP DOWNLOAD: Processing segment ${segmentId}`);
-        
-        let segmentFound = false;
-        let segmentPath = "";
-        let sourceType = "";
-        
-        // Strategy 1: Try to get from database (if we had direct DB access)
-        try {
-          const segment = await storage.getAudioSegmentById(segmentId);
-          if (segment && segment.segmentPath && existsSync(segment.segmentPath)) {
-            console.log(`ZIP DOWNLOAD: Found segment ${segmentId} in database at ${segment.segmentPath}`);
-            segmentPath = segment.segmentPath;
-            segmentFound = true;
-            sourceType = "database";
-          }
-        } catch (dbError) {
-          console.log(`ZIP DOWNLOAD: Database lookup failed for segment ${segmentId}: ${dbError}`);
-        }
-        
-        // Strategy 2: Look in segment directories if not found in DB
-        if (!segmentFound) {
-          try {
-            // Look in /uploads/segments directory and subdirectories
-            const potentialPaths = [
-              path.join(segmentsDir, `segment_${segmentId}.mp3`),
-              path.join(segmentsDir, `segment_${segmentId}.wav`),
-              path.join(segmentsDir, "direct", `segment_${segmentId}.mp3`),
-              path.join(segmentsDir, "special", `segment_${segmentId}.mp3`),
-              path.join(segmentsDir, "emergency", `segment_${segmentId}.mp3`),
-              path.join(segmentsDir, "simple", `segment_${segmentId}.mp3`)
-            ];
-            
-            // Also check in file_X directories
-            if (existsSync(segmentsDir)) {
-              const dirEntries = await fsPromises.readdir(segmentsDir, { withFileTypes: true });
-              
-              for (const entry of dirEntries) {
-                if (entry.isDirectory() && entry.name.startsWith('file_')) {
-                  const fileDir = path.join(segmentsDir, entry.name);
-                  potentialPaths.push(path.join(fileDir, `segment_${segmentId}.mp3`));
-                  potentialPaths.push(path.join(fileDir, `segment_${segmentId}.wav`));
-                  potentialPaths.push(path.join(fileDir, `${segmentId}.mp3`));
-                  potentialPaths.push(path.join(fileDir, `${segmentId}.wav`));
-                }
-              }
-            }
-            
-            // Try each path
-            for (const potentialPath of potentialPaths) {
-              if (existsSync(potentialPath)) {
-                console.log(`ZIP DOWNLOAD: Found segment ${segmentId} at ${potentialPath}`);
-                segmentPath = potentialPath;
-                segmentFound = true;
-                sourceType = "filesystem";
-                break;
-              }
-            }
-          } catch (fsError) {
-            console.log(`ZIP DOWNLOAD: Filesystem search failed for segment ${segmentId}: ${fsError}`);
-          }
-        }
-        
-        // Strategy 3: Generate a dummy file as last resort
-        if (!segmentFound) {
-          console.log(`ZIP DOWNLOAD: Segment ${segmentId} not found, creating dummy file`);
-          
-          // Create a proper MP3 file (minimal MP3 header + silence)
-          // This is better than just text content with MP3 extension
-          const dummyFilePath = path.join(enhancedDir, `segment_${segmentId}.mp3`);
-          
-          try {
-            // Write a minimal MP3 file (a proper binary file)
-            // This is a minimal MP3 header (silence) - just a few bytes
-            const minimalMp3Header = Buffer.from([
-              0xFF, 0xFB, 0x90, 0x44, 0x00, 0x00, 0x00, 0x00,
-              0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
-            ]);
-            
-            await fsPromises.writeFile(dummyFilePath, minimalMp3Header);
-            segmentPath = dummyFilePath;
-            segmentFound = true;
-            sourceType = "generated";
-          } catch (genError) {
-            console.error(`ZIP DOWNLOAD: Error creating dummy MP3 for segment ${segmentId}: ${genError}`);
-          }
-        }
-        
-        // Add to ZIP if we found or created a file
-        if (segmentFound && segmentPath) {
-          try {
-            const archiveFilename = `Segment_${segmentId}.mp3`;
-            archive.file(segmentPath, { name: archiveFilename });
-            
-            addedSegments.push({
-              id: segmentId,
-              source: sourceType,
-              filename: archiveFilename
-            });
-            
-            console.log(`ZIP DOWNLOAD: Added segment ${segmentId} to zip (source: ${sourceType})`);
-          } catch (zipError) {
-            console.error(`ZIP DOWNLOAD: Error adding segment ${segmentId} to zip: ${zipError}`);
-          }
-        } else {
-          console.error(`ZIP DOWNLOAD: Failed to find or create segment ${segmentId}`);
-        }
-      }
-      
-      // Add a README to explain the contents
-      const readmeContent = `
-Audio Segments ZIP Export
-========================
-Generated: ${new Date().toISOString()}
-Total segments: ${addedSegments.length}
-
-Segment Sources:
-${addedSegments.map(s => `- Segment ${s.id}: ${s.source} (${s.filename})`).join('\n')}
-`;
-      
-      archive.append(readmeContent, { name: 'README.txt' });
-      
-      // Finalize the archive
-      console.log(`ZIP DOWNLOAD: Finalizing zip with ${addedSegments.length} segments`);
-      archive.finalize();
-      
-    } catch (error: any) {
-      console.error(`ZIP DOWNLOAD ERROR: ${error.message || 'Unknown error'}`);
-      if (!res.headersSent) {
-        res.status(500).json({ message: error.message || 'Unknown error' });
-      }
-    }
-  });
-
-  // Updated simple download page with multi-segment ZIP download - NO AUTH REQUIRED
-  app.get("/api/simple-download", async (req, res) => {
-    const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Download Audio Segments</title>
-      <style>
-        body { font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
-        h1 { color: #333; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input[type="text"] { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        button { background: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
-        .note { background: #f8f8f8; padding: 10px; border-left: 4px solid #4CAF50; margin: 20px 0; }
-        .segments { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
-        .segment-button { 
-          background: #f0f0f0; 
-          padding: 10px; 
-          border-radius: 4px; 
-          cursor: pointer; 
-          margin: 5px;
-          border: 1px solid #ddd;
-        }
-        .segment-button:hover { background: #e0e0e0; }
-        .segment-button.selected { background: #d4edda; border: 1px solid #4CAF50; }
-        .direct-links { margin-top: 20px; display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 10px; }
-        .direct-link { 
-          display: block; 
-          background: #007bff; 
-          color: white; 
-          padding: 8px 15px; 
-          text-decoration: none; 
-          border-radius: 4px; 
-          text-align: center;
-        }
-        .direct-link:hover { background: #0069d9; }
-        .zip-download-section {
-          margin: 30px 0;
-          padding: 20px;
-          background: #e9f7ef;
-          border-radius: 8px;
-          border: 1px solid #4CAF50;
-        }
-        .zip-button {
-          background: #28a745;
-          color: white;
-          padding: 12px 20px;
-          border: none;
-          border-radius: 4px;
-          font-size: 16px;
-          cursor: pointer;
-          margin-top: 15px;
-        }
-        .zip-button:hover {
-          background: #218838;
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Download Audio Segments</h1>
-      
-      <div class="note">
-        This page allows you to download individual segments or multiple segments as a ZIP file.
-      </div>
-      
-      <div class="zip-download-section">
-        <h2>Download Multiple Segments as ZIP</h2>
-        <p>Select the segments you want to include in your ZIP file:</p>
-        
-        <div id="segment-selector">
-          <!-- Segment buttons will go here -->
-        </div>
-        
-        <div class="form-group" style="margin-top: 15px;">
-          <button id="download-zip" class="zip-button">Download Selected Segments as ZIP</button>
-        </div>
-      </div>
-      
-      <h2>Direct Downloads (Individual Segments)</h2>
-      <p>Or download individual segments directly:</p>
-      
-      <div class="direct-links">
-        <a href="/api/segments/1/direct-download" class="direct-link">Segment 1</a>
-        <a href="/api/segments/2/direct-download" class="direct-link">Segment 2</a>
-        <a href="/api/segments/3/direct-download" class="direct-link">Segment 3</a>
-        <a href="/api/segments/4/direct-download" class="direct-link">Segment 4</a>
-        <a href="/api/segments/5/direct-download" class="direct-link">Segment 5</a>
-        <a href="/api/segments/6/direct-download" class="direct-link">Segment 6</a>
-        <a href="/api/segments/7/direct-download" class="direct-link">Segment 7</a>
-        <a href="/api/segments/8/direct-download" class="direct-link">Segment 8</a>
-        <a href="/api/segments/9/direct-download" class="direct-link">Segment 9</a>
-        <a href="/api/segments/10/direct-download" class="direct-link">Segment 10</a>
-        <a href="/api/segments/11/direct-download" class="direct-link">Segment 11</a>
-        <a href="/api/segments/12/direct-download" class="direct-link">Segment 12</a>
-        <a href="/api/segments/13/direct-download" class="direct-link">Segment 13</a>
-        <a href="/api/segments/14/direct-download" class="direct-link">Segment 14</a>
-        <a href="/api/segments/15/direct-download" class="direct-link">Segment 15</a>
-        <a href="/api/segments/16/direct-download" class="direct-link">Segment 16</a>
-        <a href="/api/segments/17/direct-download" class="direct-link">Segment 17</a>
-        <a href="/api/segments/18/direct-download" class="direct-link">Segment 18</a>
-        <a href="/api/segments/19/direct-download" class="direct-link">Segment 19</a>
-        <a href="/api/segments/20/direct-download" class="direct-link">Segment 20</a>
-      </div>
-      
-      <script>
-        // Create segment selection buttons
-        const segmentSelector = document.getElementById('segment-selector');
-        const downloadZipButton = document.getElementById('download-zip');
-        
-        const selectedSegments = new Set();
-        
-        // Create buttons for segments 1-20
-        for (let i = 1; i <= 20; i++) {
-          const button = document.createElement('button');
-          button.className = 'segment-button';
-          button.textContent = 'Segment ' + i;
-          button.dataset.id = i.toString();
-          
-          button.addEventListener('click', function() {
-            // Toggle selection
-            if (selectedSegments.has(i)) {
-              selectedSegments.delete(i);
-              this.classList.remove('selected');
-            } else {
-              selectedSegments.add(i);
-              this.classList.add('selected');
-            }
-          });
-          
-          segmentSelector.appendChild(button);
-        }
-        
-        // Handle ZIP download
-        downloadZipButton.addEventListener('click', function() {
-          if (selectedSegments.size === 0) {
-            alert('Please select at least one segment to download');
-            return;
-          }
-          
-          // Build the URL with ID parameters
-          const params = Array.from(selectedSegments)
-            .map(id => 'id=' + id)
-            .join('&');
-            
-          // Navigate to the download URL
-          window.location.href = '/api/segments/zip-download?' + params;
-        });
-      </script>
-    </body>
-    </html>
-    `;
-    
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
-  });
 
   return createServer(app);
 }
