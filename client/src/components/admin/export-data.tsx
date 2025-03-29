@@ -246,22 +246,6 @@ export function ExportData() {
                   </>
                 )}
               </Button>
-
-              {/* Add Whisper Training Export Button */}
-              <a 
-                href={`/api/whisper-training-export${
-                  formValues.startDate || formValues.endDate
-                    ? `?startDate=${encodeURIComponent(formValues.startDate)}&endDate=${encodeURIComponent(formValues.endDate)}`
-                    : ''
-                }`} 
-                className="inline-block" 
-                download
-              >
-                <Button type="button" variant="outline">
-                  <Download className="mr-2 h-4 w-4" />
-                  Whisper Training Data
-                </Button>
-              </a>
             </div>
           </form>
         </CardContent>

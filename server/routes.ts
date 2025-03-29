@@ -308,8 +308,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log successful access
       console.log(`User ${req.user!.username} accessing audio segment ${segmentId}`);
       
-      // Serve the audio file
-      res.sendFile(segment.segmentPath, { root: "/" });
+      // Serve the audio file using an absolute path relative to the project root
+      const absolutePath = path.resolve(process.cwd(), segment.segmentPath);
+      if (fs.existsSync(absolutePath)) {
+        res.sendFile(absolutePath);
+      } else {
+        console.error(`Audio segment file not found at path: ${absolutePath} (relative path was: ${segment.segmentPath})`);
+        res.status(404).json({ message: "Audio segment file not found." });
+      }
       
     } catch (error: any) {
       console.error(`Error serving audio segment ${req.params.id}:`, error);
