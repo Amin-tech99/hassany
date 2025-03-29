@@ -690,172 +690,86 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // --- Token Cleanup Function (Keep) ---
-  const downloadTokens = new Map<string, { userId: number, expires: Date, used: boolean }>();
-  function cleanupExpiredTokens() {
-    const now = new Date();
-    // Use forEach to avoid downlevelIteration issue
-    downloadTokens.forEach((data, token) => {
-      if (data.expires < now) {
-        downloadTokens.delete(token);
-        console.log(`Cleaned up expired download token: ${token}`);
+  // +++ ADD New Direct Bulk Segment Download Endpoint +++
+  app.get("/api/audio/download-all-segments", isAuthenticated, isAdmin, async (req: Request, res: Response) => {
+    console.log(`Admin ${req.user!.id} requested download of all segments.`);
+
+    try {
+      // 1. Fetch all segment records from storage
+      const allSegments: AudioSegment[] = await storage.getAllSegments();
+      if (!allSegments || allSegments.length === 0) {
+        return res.status(404).json({ message: "No audio segments found in the database." });
       }
-    });
-  }
-  setInterval(cleanupExpiredTokens, 60 * 60 * 1000); // Run every hour
+      console.log(`Found ${allSegments.length} segment records to potentially archive.`);
 
-  // Endpoint to create a download token (Keep)
-  app.post("/api/audio/create-download-token", isAuthenticated, isAdmin, (req: Request, res: Response) => {
-    try {
-      const token = randomUUID(); // Use crypto.randomUUID for better randomness
-      const expires = new Date();
-      expires.setMinutes(expires.getMinutes() + 10); // Token valid for 10 minutes
-      
-      downloadTokens.set(token, {
-        userId: req.user!.id,
-        expires,
-        used: false
+      // 2. Prepare ZIP Archive
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const zipFilename = `all_segments_export_${timestamp}.zip`;
+      const archive = archiver('zip', { zlib: { level: 9 } });
+
+      // Set headers for direct download
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="${zipFilename}"`);
+
+      // Handle archive warnings and errors
+      archive.on('warning', (err) => {
+        if (err.code === 'ENOENT') {
+          console.warn('Archiver warning (likely file not found):', err);
+        } else {
+          console.error('Archiver warning:', err);
+        }
       });
-      
-      console.log(`Generated download token ${token} for user ${req.user!.id}, expires at ${expires.toISOString()}`);
-      res.json({ token });
-      
-    } catch (error) {
-      console.error("Error creating download token:", error);
-      res.status(500).json({ error: "Failed to create download token" });
-    }
-  });
-
-  // Token-based bulk download endpoint (Refactored to use real files)
-  app.get("/api/audio/download/:token", async (req: Request, res: Response) => {
-    const token = req.params.token;
-    console.log(`Bulk audio download request with token: ${token}`);
-
-    // 1. Verify Token
-    const tokenData = downloadTokens.get(token);
-    if (!tokenData) {
-      console.log("Token not found:", token);
-      return res.status(401).json({ error: "Invalid or expired download token (not found)" });
-    }
-    if (tokenData.expires < new Date()) {
-      console.log("Token expired:", token);
-      downloadTokens.delete(token); // Clean up expired token
-      return res.status(401).json({ error: "Download token has expired" });
-    }
-    if (tokenData.used) {
-        console.log("Token already used:", token);
-        return res.status(401).json({ error: "Download token has already been used" });
-    }
-
-    // Mark token as used immediately
-    tokenData.used = true;
-    downloadTokens.set(token, tokenData);
-
-    console.log(`Token ${token} validated for user ID: ${tokenData.userId}`);
-
-    try {
-        // 2. Prepare ZIP Archive
-        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const zipFilename = `all_audio_export_${timestamp}.zip`;
-        const zipFilePath = path.join(exportsDir, zipFilename);
-        console.log(`Creating bulk audio ZIP archive at: ${zipFilePath}`);
-
-        const output = fs.createWriteStream(zipFilePath);
-        const archive = archiver('zip', { zlib: { level: 9 } });
-
-        let filesAdded = 0;
-        let segmentsAdded = 0;
-
-        // Setup archive event listeners
-        output.on('close', () => {
-            console.log(`ZIP archive created successfully. Size: ${archive.pointer()} bytes. Contains ${filesAdded} original files and ${segmentsAdded} segments.`);
-            res.download(zipFilePath, zipFilename, (downloadErr) => {
-                if (downloadErr) {
-                    console.error('Error sending ZIP file:', downloadErr);
-                } else {
-                    console.log(`Successfully sent ZIP file: ${zipFilename}`);
-                }
-                // Cleanup ZIP file after delay
-                setTimeout(() => {
-                    fs.unlink(zipFilePath, (unlinkErr) => {
-                        if (unlinkErr) console.error(`Error removing temp ZIP file ${zipFilePath}:`, unlinkErr);
-                        else console.log(`Cleaned up temp ZIP file: ${zipFilePath}`);
-                    });
-                }, 15000);
-            });
-        });
-
-        archive.on('warning', (warnErr) => console.warn('ZIP archive warning:', warnErr));
-        archive.on('error', (archiveErr) => {
-            console.error('ZIP archive creation error:', archiveErr);
-            if (!res.headersSent) {
-                res.status(500).json({ error: 'Failed to create ZIP archive' });
-            }
-             output.end();
-             fs.unlink(zipFilePath, (unlinkErr) => {
-                 if (unlinkErr) console.error(`Error removing partial ZIP file ${zipFilePath} after error:`, unlinkErr);
-             });
-        });
-
-        archive.pipe(output);
-
-        // 3. Fetch and Add REAL Files/Segments
-        console.log("Fetching all audio files and segments from storage...");
-        
-        // Use getAudioFiles(null, true) to fetch all files, assuming it returns AudioFile[]
-        // Explicitly type 'file' as 'AudioFile' (assuming AudioFile type is defined/imported)
-        const audioFiles: AudioFile[] = await storage.getAudioFiles(null, true); 
-        console.log(`Found ${audioFiles.length} total audio file records.`);
-
-        // Add original uploaded files
-        for (const file of audioFiles) { // Type 'file' is now AudioFile
-            if (file.originalPath) {
-                 const absolutePath = path.resolve(file.originalPath);
-                 if (fs.existsSync(absolutePath)) {
-                     archive.file(absolutePath, { name: `original_uploads/${path.basename(absolutePath)}` });
-                     filesAdded++;
-                 } else {
-                      console.warn(`Original file path not found on disk: ${absolutePath} for file ID ${file.id}`);
-                 }
-            }
+      archive.on('error', (err) => {
+        console.error('Archiver error:', err);
+        // Try to send an error response if headers not already sent
+        if (!res.headersSent) {
+           res.status(500).json({ message: "Failed to create archive.", error: err.message });
+        } else {
+           // If headers sent, just end the response abruptly
+           res.end();
         }
+      });
 
-        // Fetch and add segment files using the correct type AudioSegment
-        const allSegments: AudioSegment[] = await storage.getAllSegments(); // Use AudioSegment
-        console.log(`Found ${allSegments.length} total segment records.`);
-        for (const segment of allSegments) { // Use AudioSegment for loop variable
-             if (segment.segmentPath) {
-                 const absolutePath = path.resolve(segment.segmentPath);
-                 try {
-                     await fsPromises.access(absolutePath, fs.constants.R_OK);
-                     const parentDir = `file_${segment.audioFileId}_segments`;
-                     archive.file(absolutePath, { name: `${parentDir}/${path.basename(absolutePath)}` });
-                     segmentsAdded++;
-                 } catch (accessErr) {
-                     console.warn(`Segment file path not found or not readable: ${absolutePath} for segment ID ${segment.id}`);
-                 }
-             }
+      // Pipe archive data to the response
+      archive.pipe(res);
+
+      // 3. Add Segment Files to Archive
+      let segmentsAdded = 0;
+      for (const segment of allSegments) {
+        if (segment.segmentPath) {
+          const absolutePath = path.resolve(segment.segmentPath);
+          try {
+            // Check if file exists before adding
+            await fsPromises.access(absolutePath, fs.constants.R_OK);
+            const parentDir = `file_${segment.audioFileId}_segments`;
+            archive.file(absolutePath, { name: `${parentDir}/${path.basename(absolutePath)}` });
+            segmentsAdded++;
+          } catch (accessErr) {
+            // Log if a segment file listed in DB is not found on disk
+            console.warn(`Segment file not found or not readable: ${absolutePath} for segment ID ${segment.id}`);
+          }
         }
+      }
 
-        console.log(`Adding ${filesAdded} original files and ${segmentsAdded} segments to the archive.`);
+      console.log(`Attempting to add ${segmentsAdded} segment files to the archive.`);
 
-        // Add README
-        const readmeContent = `Bulk Audio Export\nGenerated: ${new Date().toISOString()}\nToken: ${token}\nUser ID: ${tokenData.userId}\n\nContains:\n- ${filesAdded} original uploaded audio files\n- ${segmentsAdded} processed segment files\n`;
-        archive.append(readmeContent, { name: 'README.txt' });
+      // Add a README
+      const readmeContent = `Bulk Segments Export\nGenerated: ${new Date().toISOString()}\nUser: Admin ${req.user!.id}\n\nContains: ${segmentsAdded} processed segment files organized by original audio file ID.\n`;
+      archive.append(readmeContent, { name: 'README.txt' });
 
-        // Finalize archive
-        console.log("Finalizing ZIP archive...");
-        await archive.finalize();
+      // Finalize the archive (this sends the final chunk and closes the stream)
+      await archive.finalize();
+      console.log(`Archive finalized and sent for ${segmentsAdded} segments.`);
 
     } catch (error: any) {
-        console.error(`Error during bulk audio download process for token ${token}:`, error);
-        if (!res.headersSent) {
-            res.status(500).json({ error: error.message || 'Internal server error during bulk download' });
-        }
+      console.error(`Error during bulk segment download process for admin ${req.user!.id}:`, error);
+      if (!res.headersSent) {
+        res.status(500).json({ error: error.message || 'Internal server error during bulk segment download' });
+      }
     }
   });
-  
-  // --- Cleanup Endpoint (Refactored) ---
+
+  // --- Cleanup Endpoint (Keep as is for now) ---
   app.post("/api/audio/cleanup", isAuthenticated, isAdmin, async (req, res) => {
       console.log("Cleanup request received from user:", req.user!.id);
       try {
@@ -931,12 +845,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Return the server instance
-  try {
-    return createServer(app);
-  } catch (error) {
-    console.error("Error creating HTTP server:", error);
-    throw error;
-  } finally {
-    console.log("Server initialization complete");
-  }
+  const port = process.env.PORT || 3001;
+  const server = app.listen(port, () => {
+     console.log(`Server listening on port ${port}`);
+   });
+  return server;
 }

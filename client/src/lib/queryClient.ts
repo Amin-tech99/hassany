@@ -50,6 +50,8 @@ export async function apiRequest(
       body: data ? JSON.stringify(data) : undefined,
       // Prevent caching for auth requests
       cache: "no-store",
+      // Include credentials (cookies) for session-based auth
+      credentials: 'include', 
     });
 
     console.log(`API Response: ${method} ${url}`, { 

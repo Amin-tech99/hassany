@@ -249,6 +249,25 @@ export function ExportData() {
         </CardContent>
       </Card>
 
+      {/* --- Add New Section for Bulk Segment Download --- */}
+      <Card className="mt-6 bg-white shadow">
+        <CardContent className="px-4 py-5 sm:p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-2">Bulk Segment Download</h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Download a ZIP archive containing all processed audio segment files.
+            This can be useful for backup or offline analysis.
+          </p>
+          {/* Direct link wrapped in a Button component */}
+          <a href="/api/audio/download-all-segments" download>
+            <Button>
+              <Download className="mr-2 h-4 w-4" />
+              Download All Segments
+            </Button>
+          </a>
+        </CardContent>
+      </Card>
+      {/* --- End New Section --- */}
+
       {/* Export History */}
       <div className="mt-8">
         <h3 className="text-lg leading-6 font-medium text-gray-900">Export History</h3>
