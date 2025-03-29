@@ -9,8 +9,7 @@ import {
   Download, 
   LogOut, 
   X,
-  Menu,
-  CheckSquare
+  Menu
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -49,13 +48,6 @@ const navItems: NavItem[] = [
     icon: <Users className="mr-3 h-5 w-5" />,
     adminOnly: true,
     color: "text-purple-400"
-  },
-  {
-    href: "/verification",
-    label: "Batch Verification",
-    icon: <CheckSquare className="mr-3 h-5 w-5" />,
-    adminOnly: true,
-    color: "text-orange-400"
   },
   {
     href: "/export",
