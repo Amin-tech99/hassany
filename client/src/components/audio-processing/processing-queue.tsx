@@ -93,14 +93,19 @@ export function ProcessingQueue() {
         throw new Error('Authentication failed: Token not found in storage.');
       }
 
-      const requestHeaders = {
-        'Authorization': `Bearer ${token}`
-      };
-      console.log("Request headers being sent:", requestHeaders);
+      // IMPORTANT: Ensure the token has the "Bearer " prefix
+      let authHeaderValue = token;
+      if (!token.startsWith('Bearer ')) {
+        authHeaderValue = 'Bearer ' + token;
+      }
+      
+      console.log("Using Authorization header:", authHeaderValue.substring(0, 20) + "...");
 
       const response = await fetch(`/api/audio/${fileId}/segments/download`, {
         method: 'GET',
-        headers: requestHeaders,
+        headers: {
+          'Authorization': authHeaderValue
+        },
       });
 
       if (!response.ok) {
