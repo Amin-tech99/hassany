@@ -263,37 +263,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get transcription if it exists
       const transcription = await storage.getTranscriptionBySegmentId(segmentId);
       
-      // Get verification information if transcription exists
-      let verifications: any[] = [];
-      let verifiers: string[] = [];
-      
-      if (transcription) {
-        // Get all verifications for this transcription
-        verifications = await storage.getTranscriptionVerifications(transcription.id);
-        
-        // Get the names of users who have verified this transcription
-        if (verifications.length > 0) {
-          const verifierIds = verifications.map(v => v.userId);
-          const verifierUsers = await Promise.all(
-            verifierIds.map(id => storage.getUser(id))
-          );
-          
-          verifiers = verifierUsers
-            .filter((user): user is { id: number; username: string; fullName?: string } => !!user) // Remove any null results
-            .map(user => user.fullName || user.username);
-        }
-      }
-      
       // Create the audio URL
       const audioUrl = `/api/segments/${segmentId}/audio`;
       
       res.json({
         ...segment,
-        transcription: transcription ? {
-          ...transcription,
-          verifiers,
-          verifications
-        } : null,
+        transcription,
         audioUrl,
         audioId: `Segment_${segment.id}`,
       });
@@ -356,76 +331,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const existingTranscription = await storage.getTranscriptionBySegmentId(segmentId);
       
       if (existingTranscription) {
-        // Check if this user has already verified this transcription
-        const existingVerification = await storage.getUserVerification(
-          existingTranscription.id, 
-          req.user!.id
-        );
+        // Update existing transcription
+        const updatedTranscription = await storage.updateTranscription(existingTranscription.id, {
+          text: text || existingTranscription.text,
+          notes: notes !== undefined ? notes : existingTranscription.notes,
+          reviewedBy: req.user!.role === "reviewer" || req.user!.role === "admin" ? req.user!.id : existingTranscription.reviewedBy,
+          status: status || existingTranscription.status,
+          rating: rating !== undefined ? rating : existingTranscription.rating,
+          reviewNotes: reviewNotes !== undefined ? reviewNotes : existingTranscription.reviewNotes,
+        });
         
-        if (existingVerification) {
-          return res.status(400).json({ 
-            message: "You have already verified this transcription",
-            verification: existingVerification
-          });
-        }
-        
-        // For reviewers or admins submitting a verification
-        if (req.user!.role === "reviewer" || req.user!.role === "admin") {
-          // Create a verification record
-          const verification = await storage.createTranscriptionVerification({
-            transcriptionId: existingTranscription.id,
-            userId: req.user!.id,
-            verified: status === "approved",
-            notes: reviewNotes || "",
-            rating: rating || null
-          });
-          
-          // The storage.createTranscriptionVerification method will automatically update
-          // the transcription status based on verification count and results
-          
-          // Get the updated transcription
-          const updatedTranscription = await storage.getTranscriptionById(existingTranscription.id);
-          
-          // Update segment status based on transcription status
-          if (updatedTranscription.status === "cross_validated") {
-            await storage.updateAudioSegmentStatus(segmentId, "reviewed");
-          } else if (updatedTranscription.status === "rejected") {
-            await storage.updateAudioSegmentStatus(segmentId, "rejected");
-          } else {
-            // Still pending more verifications
-            await storage.updateAudioSegmentStatus(segmentId, "transcribed");
+        // Update segment status based on transcription status
+        if (status) {
+          let segmentStatus = segment.status;
+          if (status === "approved") {
+            segmentStatus = "reviewed";
+          } else if (status === "rejected") {
+            segmentStatus = "rejected";
           }
-          
-          res.json({
-            transcription: updatedTranscription,
-            verification,
-            message: "Verification submitted successfully"
-          });
-        } else {
-          // For transcribers updating their own transcription
-          const updatedTranscription = await storage.updateTranscription(existingTranscription.id, {
-            text: text || existingTranscription.text,
-            notes: notes !== undefined ? notes : existingTranscription.notes,
-            status: "pending_cross_validation" // Reset to pending cross-validation
-          });
-          
-          await storage.updateAudioSegmentStatus(segmentId, "transcribed");
-          
-          res.json(updatedTranscription);
+          await storage.updateAudioSegmentStatus(segmentId, segmentStatus);
         }
+        
+        res.json(updatedTranscription);
       } else {
         // Create new transcription
         const transcription = await storage.createTranscription({
           segmentId,
           text,
           createdBy: req.user!.id,
-          reviewedBy: null, // No longer set reviewedBy directly
-          status: "pending_cross_validation", // Default to pending cross-validation
+          reviewedBy: req.user!.role === "reviewer" || req.user!.role === "admin" ? req.user!.id : null,
+          status: status || "pending_review",
           notes,
-          rating: null,
-          reviewNotes: null,
-          verificationCount: 0,
-          requiredVerifications: 4 // Set the required number of verifications
+          rating,
+          reviewNotes,
         });
         
         // Update segment status
@@ -608,20 +546,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const filename = `export_${Date.now()}.json`;
       const filePath = path.join(exportsDir, filename);
       
-      // Get fully validated transcriptions based on criteria
+      // Get transcriptions based on criteria
       let transcriptions;
       if (exportType === "all_verified") {
         transcriptions = await storage.getVerifiedTranscriptions(startDate, endDate);
-        
-        // Filter to only include fully cross-validated transcriptions
-        transcriptions = transcriptions.filter(t => t.verified === true);
       } else {
         // For selected files, we would need file IDs
         // This is a simplified implementation
         transcriptions = await storage.getVerifiedTranscriptions(startDate, endDate);
-        
-        // Filter to only include fully cross-validated transcriptions
-        transcriptions = transcriptions.filter(t => t.verified === true);
       }
       
       // Format the data according to the selected format

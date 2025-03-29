@@ -90,26 +90,13 @@ export const transcriptions = pgTable("transcriptions", {
   segmentId: integer("segment_id").notNull(), // Reference to the audio segment
   text: text("text").notNull(),
   createdBy: integer("created_by").notNull(), // User ID
-  reviewedBy: integer("reviewed_by"), // User ID (will be deprecated in favor of multiple verifications)
-  status: text("status").notNull(), // 'pending_review', 'approved', 'rejected', 'pending_cross_validation', 'cross_validated'
+  reviewedBy: integer("reviewed_by"), // User ID
+  status: text("status").notNull(), // 'pending_review', 'approved', 'rejected'
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
   rating: integer("rating"), // 1-5 star rating by reviewer
   reviewNotes: text("review_notes"), // Notes from reviewer if rejected
-  verificationCount: integer("verification_count").default(0), // Count of users who have verified this transcription
-  requiredVerifications: integer("required_verifications").default(4), // Number of verifications required for cross-validation
-});
-
-// New table for cross-validation tracking
-export const transcriptionVerifications = pgTable("transcription_verifications", {
-  id: serial("id").primaryKey(),
-  transcriptionId: integer("transcription_id").notNull(), // Reference to the transcription
-  userId: integer("user_id").notNull(), // User who performed the verification
-  verified: boolean("verified").notNull(), // True if verified, false if rejected
-  notes: text("notes"), // Optional notes from the verifier
-  rating: integer("rating"), // 1-5 star rating 
-  createdAt: timestamp("created_at").defaultNow(),
 });
 
 export const insertTranscriptionSchema = createInsertSchema(transcriptions).pick({
@@ -121,24 +108,10 @@ export const insertTranscriptionSchema = createInsertSchema(transcriptions).pick
   notes: true,
   rating: true,
   reviewNotes: true,
-  verificationCount: true,
-  requiredVerifications: true,
-});
-
-export const insertTranscriptionVerificationSchema = createInsertSchema(transcriptionVerifications).pick({
-  transcriptionId: true,
-  userId: true,
-  verified: true,
-  notes: true,
-  rating: true,
 });
 
 export type InsertTranscription = z.infer<typeof insertTranscriptionSchema>;
 export type Transcription = typeof transcriptions.$inferSelect;
-
-// Add TranscriptionVerification type definition
-export type TranscriptionVerification = typeof transcriptionVerifications.$inferSelect;
-export type InsertTranscriptionVerification = typeof transcriptionVerifications.$inferInsert;
 
 // Export model (for tracking JSON exports)
 export const exports = pgTable("exports", {
