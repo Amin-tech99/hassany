@@ -66,31 +66,39 @@ export function CleanupStorage() {
         description: "Creating archive of all audio files. This may take a moment...",
       });
       
-      // Using window.open for direct download 
-      // This will prompt the browser to download the file
-      const downloadWindow = window.open("/api/audio/export-all", "_blank");
+      // Use the apiRequest function to properly handle authentication
+      const response = await apiRequest("GET", "/api/audio/export-all");
       
-      // If popup blocked, show message
-      if (!downloadWindow) {
-        toast({
-          title: "Download Blocked",
-          description: "Your browser blocked the download. Please allow popups for this site.",
-          variant: "destructive",
-        });
-      }
+      // Get the blob content
+      const blob = await response.blob();
       
-      // Set a timeout to update UI state
-      setTimeout(() => {
-        setIsDownloading(false);
-      }, 3000);
+      // Create a download link for the blob
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      
+      // Set attributes for download
+      link.href = url;
+      link.download = `audio-files-${new Date().toISOString().slice(0, 10)}.zip`;
+      
+      // Add to document, trigger click, then remove
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Success message
+      toast({
+        title: "Download Started",
+        description: "Your audio files are being downloaded now."
+      });
       
     } catch (error) {
-      setIsDownloading(false);
       toast({
         title: "Download Failed",
         description: error instanceof Error ? error.message : "Unknown error",
         variant: "destructive",
       });
+    } finally {
+      setIsDownloading(false);
     }
   };
   
