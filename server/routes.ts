@@ -1893,26 +1893,16 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
   // Add endpoint to export all processed audio files for download (before cleanup)
   app.get("/api/audio/export-all", isAuthenticated, isAdmin, async (req, res) => {
     try {
-      console.log("Starting audio export process...");
+      console.log("Starting REAL AUDIO export process...");
       
-      // Get all audio files with processed status that haven't been cleaned up
-      const audioFilesMap = await storage.getAllAudioFiles();
-      const audioFiles = Array.from(audioFilesMap.values())
-        .filter(file => file.status === "processed");
-      
-      console.log(`Found ${audioFiles.length} processed audio files for export`);
-      
-      if (audioFiles.length === 0) {
-        return res.status(404).json({ message: "No processed audio files available for export" });
-      }
-      
-      // Create necessary directories
+      // Create necessary directories first
       const uploadsDir = path.join(process.cwd(), "uploads");
+      const segmentsDir = path.join(uploadsDir, "segments");
       const exportsDir = path.join(uploadsDir, "exports");
-      const tempDir = path.join(exportsDir, "temp");
+      const tempDir = path.join(exportsDir, "temp_export");
       
       // Ensure all directories exist
-      for (const dir of [uploadsDir, exportsDir, tempDir]) {
+      for (const dir of [uploadsDir, segmentsDir, exportsDir, tempDir]) {
         if (!existsSync(dir)) {
           await fs.promises.mkdir(dir, { recursive: true });
           console.log(`Created directory: ${dir}`);
@@ -1977,72 +1967,191 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
       // Pipe archive data to the output file
       archive.pipe(output);
       
+      // Get all audio files from storage - prioritize processed ones
+      const audioFilesMap = await storage.getAllAudioFiles();
+      const audioFiles = Array.from(audioFilesMap.values());
+      const processedFiles = audioFiles.filter(file => file.status === "processed");
+      
+      console.log(`Found ${processedFiles.length} processed audio files and ${audioFiles.length - processedFiles.length} other files`);
+      
       // Track stats for README
       const fileStats = {
-        totalFiles: 0,
-        totalSegments: 0,
-        placeholderFiles: 0,
-        missingFiles: 0,
+        originalFiles: 0,
+        segments: 0,
+        syntheticFiles: 0,
         fileList: [] as string[]
       };
       
-      // Add original files and their segments to the archive
+      // Get all segments from storage
+      let allSegments: any[] = [];
+      // First get segments from each audio file
       for (const file of audioFiles) {
+        try {
+          const segments = await storage.getAudioSegmentsByFileId(file.id);
+          allSegments = [...allSegments, ...segments];
+        } catch (err) {
+          console.error(`Error getting segments for file ${file.id}:`, err);
+        }
+      }
+      
+      console.log(`Found ${allSegments.length} total segments in database`);
+      
+      // List all available segment directories for more thorough searching
+      let fileDirectories: string[] = [];
+      try {
+        const segmentDirContents = await fs.promises.readdir(segmentsDir);
+        fileDirectories = segmentDirContents
+          .filter(item => item.startsWith('file_'))
+          .map(dir => path.join(segmentsDir, dir));
+        
+        console.log(`Found ${fileDirectories.length} potential segment directories`);
+      } catch (err) {
+        console.error(`Error reading segments directory:`, err);
+      }
+      
+      // Create a segment lookup function that tries multiple possible locations
+      const findRealSegmentFile = async (segmentId: number): Promise<string | null> => {
+        const possibleNames = [
+          `segment_${segmentId}.mp3`,
+          `segment_${segmentId}.wav`,
+          `segment_${segmentId}.flac`,
+          `segment_${segmentId}.m4a`,
+          `segment_${segmentId}.ogg`
+        ];
+        
+        // First check segment info from database
+        const segment = allSegments.find(s => s.id === segmentId);
+        if (segment && segment.segmentPath && fs.existsSync(segment.segmentPath)) {
+          console.log(`Found segment ${segmentId} at database path: ${segment.segmentPath}`);
+          return segment.segmentPath;
+        }
+        
+        // Try standard naming in each file directory
+        for (const dir of fileDirectories) {
+          for (const name of possibleNames) {
+            const fullPath = path.join(dir, name);
+            if (fs.existsSync(fullPath)) {
+              console.log(`Found segment ${segmentId} at: ${fullPath}`);
+              return fullPath;
+            }
+          }
+        }
+        
+        // Try special directories
+        const specialDirs = [
+          path.join(segmentsDir, 'special'),
+          path.join(segmentsDir, 'direct'),
+          path.join(segmentsDir, 'emergency')
+        ];
+        
+        for (const dir of specialDirs) {
+          if (fs.existsSync(dir)) {
+            for (const name of possibleNames) {
+              const fullPath = path.join(dir, name);
+              if (fs.existsSync(fullPath)) {
+                console.log(`Found segment ${segmentId} in special dir: ${fullPath}`);
+                return fullPath;
+              }
+            }
+          }
+        }
+        
+        // As a last resort, search through all segment directory for any file containing the segment ID
+        for (const dir of fileDirectories) {
+          try {
+            const files = await fs.promises.readdir(dir);
+            // Look for files containing the segment ID in the name
+            const matchingFile = files.find(file => 
+              file.includes(`_${segmentId}.`) || 
+              file.includes(`${segmentId}_`) ||
+              file.includes(`segment_${segmentId}`)
+            );
+            
+            if (matchingFile) {
+              const fullPath = path.join(dir, matchingFile);
+              console.log(`Found segment ${segmentId} by pattern matching: ${fullPath}`);
+              return fullPath;
+            }
+          } catch (err) {
+            console.error(`Error reading directory ${dir}:`, err);
+          }
+        }
+        
+        // Could not find the real file
+        return null;
+      };
+      
+      // Process each audio file, prioritizing processed files first
+      for (const file of [...processedFiles, ...audioFiles.filter(f => f.status !== "processed")]) {
         try {
           console.log(`Processing audio file ID ${file.id}: ${file.filename}`);
           
-          // Check if original file exists
-          if (file.originalPath && existsSync(file.originalPath)) {
-            const origFilename = `original/${file.filename}`;
-            archive.file(file.originalPath, { name: origFilename });
-            fileStats.fileList.push(origFilename);
-            fileStats.totalFiles++;
-            console.log(`Added original file: ${file.originalPath}`);
-          } else {
-            console.log(`Original file missing for audio ID ${file.id}: ${file.filename}. Creating placeholder.`);
-            
-            // Create a placeholder file
-            const placeholderPath = path.join(tempDir, `original_${file.id}.mp3`);
-            const placeholderContent = `This is a placeholder for the original audio file ${file.filename} (ID: ${file.id}) which could not be found.`;
-            await fs.promises.writeFile(placeholderPath, placeholderContent);
-            
-            // Add to zip
-            const origFilename = `original/${file.filename} (PLACEHOLDER)`;
-            archive.file(placeholderPath, { name: origFilename });
-            fileStats.fileList.push(origFilename);
-            fileStats.placeholderFiles++;
+          // Add original file if it exists
+          let originalAdded = false;
+          if (file.originalPath && fs.existsSync(file.originalPath)) {
+            try {
+              const origFilename = `original/${file.filename}`;
+              archive.file(file.originalPath, { name: origFilename });
+              fileStats.fileList.push(origFilename);
+              fileStats.originalFiles++;
+              console.log(`Added original file: ${file.originalPath}`);
+              originalAdded = true;
+            } catch (fileError) {
+              console.error(`Error adding original file ${file.originalPath}:`, fileError);
+            }
           }
           
-          // Get segments for this file
-          const segments = await storage.getAudioSegmentsByFileId(file.id);
+          // Only create a synthetic original file if the real one couldn't be found
+          if (!originalAdded) {
+            console.log(`Original file not found for ${file.id}, creating synthetic placeholder`);
+            const originalSyntheticPath = path.join(tempDir, `original_${file.id}.mp3`);
+            const originalContent = `This is a synthetic audio file for ${file.filename} (ID: ${file.id})`;
+            await fs.promises.writeFile(originalSyntheticPath, originalContent);
+            
+            const origFilename = `original/${file.filename} (SYNTHETIC)`;
+            archive.file(originalSyntheticPath, { name: origFilename });
+            fileStats.fileList.push(origFilename);
+            fileStats.syntheticFiles++;
+          }
+          
+          // Find segments associated with this file
+          const segments = allSegments.filter(segment => segment.audioFileId === file.id);
           console.log(`Found ${segments.length} segments for file ID ${file.id}`);
           
-          // Create a directory for this file's segments in the zip
+          // Process each segment
           for (const segment of segments) {
             try {
-              if (existsSync(segment.segmentPath)) {
-                const segmentFilename = `segments/file_${file.id}/segment_${segment.id}.mp3`;
-                archive.file(segment.segmentPath, { name: segmentFilename });
-                fileStats.fileList.push(segmentFilename);
-                fileStats.totalSegments++;
-                console.log(`Added segment file: ${segment.segmentPath}`);
-              } else {
-                console.log(`Segment file missing: ${segment.segmentPath}. Creating placeholder.`);
-                
-                // Create a placeholder segment file
-                const placeholderPath = path.join(tempDir, `segment_${segment.id}.mp3`);
-                const placeholderContent = `This is a placeholder for segment ID ${segment.id} which could not be found.`;
-                await fs.promises.writeFile(placeholderPath, placeholderContent);
-                
-                // Add to zip
-                const segmentFilename = `segments/file_${file.id}/segment_${segment.id}.mp3 (PLACEHOLDER)`;
-                archive.file(placeholderPath, { name: segmentFilename });
-                fileStats.fileList.push(segmentFilename);
-                fileStats.placeholderFiles++;
+              // Find the real segment file with exhaustive search
+              const realSegmentPath = await findRealSegmentFile(segment.id);
+              
+              // Add the real segment file if found
+              if (realSegmentPath && fs.existsSync(realSegmentPath)) {
+                try {
+                  // Create subdirectory structure for this file's segments
+                  const segmentFilename = `segments/file_${file.id}/segment_${segment.id}.mp3`;
+                  archive.file(realSegmentPath, { name: segmentFilename });
+                  fileStats.fileList.push(segmentFilename);
+                  fileStats.segments++;
+                  console.log(`Added real segment file: ${realSegmentPath}`);
+                  continue; // Skip creating synthetic file
+                } catch (segError) {
+                  console.error(`Error adding segment file ${realSegmentPath}:`, segError);
+                }
               }
+              
+              // If real segment not found or couldn't be added, create synthetic placeholder
+              console.log(`Real segment file not found for segment ${segment.id}, creating synthetic placeholder`);
+              const segmentSyntheticPath = path.join(tempDir, `segment_${segment.id}.mp3`);
+              const segmentContent = `This is a synthetic audio segment for segment ID ${segment.id}`;
+              await fs.promises.writeFile(segmentSyntheticPath, segmentContent);
+                
+              const segmentFilename = `segments/file_${file.id}/segment_${segment.id}.mp3 (SYNTHETIC)`;
+              archive.file(segmentSyntheticPath, { name: segmentFilename });
+              fileStats.fileList.push(segmentFilename);
+              fileStats.syntheticFiles++;
+              console.log(`Added synthetic segment file for segment ${segment.id}`);
             } catch (segmentError) {
               console.error(`Error processing segment ${segment.id}:`, segmentError);
-              fileStats.missingFiles++;
             }
           }
         } catch (fileError) {
@@ -2051,18 +2160,19 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
       }
       
       // Add a README file with information
-      const readmeContent = `Audio Files Export
+      const readmeContent = `Audio Files Export (REAL + SYNTHETIC)
 Generated: ${new Date().toISOString()}
-Total original files: ${fileStats.totalFiles}
-Total segments: ${fileStats.totalSegments}
-Placeholder files: ${fileStats.placeholderFiles}
-Missing files: ${fileStats.missingFiles}
+Original files found: ${fileStats.originalFiles}
+Segment files found: ${fileStats.segments}
+Synthetic files created: ${fileStats.syntheticFiles}
+Total files in archive: ${fileStats.originalFiles + fileStats.segments + fileStats.syntheticFiles}
 
-This archive contains all processed audio files from the Hassaniya Transcriber application.
+This archive contains all available audio files from the Hassaniya Transcriber application.
 Original files are in the 'original' directory, and segments are in the 'segments/file_X' directories.
 
-Note: Some audio files may be placeholders if the original files were not found.
-These files are marked with "(PLACEHOLDER)" in their filename.
+NOTE: Our system has made every effort to find all real audio files on the server.
+Files marked with "(SYNTHETIC)" are placeholder text files created only when the real audio
+could not be found after an exhaustive search.
 
 Files included:
 ${fileStats.fileList.slice(0, 50).join('\n')}
@@ -2072,12 +2182,52 @@ ${fileStats.fileList.length > 50 ? `\n...and ${fileStats.fileList.length - 50} m
       console.log("Adding README to zip file");
       archive.append(readmeContent, { name: 'README.txt' });
       
+      // Add a helpful instruction file
+      const instructionFile = `
+# Using These Files for Whisper Training
+
+The audio files in this zip archive can be used for training Whisper models. Here's how to use them:
+
+## File Structure
+- /original/ - Contains the original complete audio files
+- /segments/file_X/ - Contains the individual segments for each original file
+
+## Using for Whisper Training
+1. The segments in 'segments/file_X/' directories are what you'll want to use with your transcription data
+2. Each segment has a corresponding transcription in your database
+3. Create a training dataset with pairs of:
+   - Audio file: segments/file_X/segment_Y.mp3
+   - Transcription: From your database or export for segment with ID Y
+
+## Important Notes
+- This export prioritized finding real audio files from all possible locations on the server
+- If any files are marked as "(SYNTHETIC)", it means the original audio was not found
+- You may want to filter out the synthetic files when preparing your training data
+
+## Recommended Whisper Training Format
+For each real audio segment, create a JSON entry:
+\`\`\`json
+{
+  "audio_filepath": "path/to/segment_X.mp3",
+  "text": "transcription text from your database"
+}
+\`\`\`
+
+You can then use this data with Whisper's fine-tuning scripts.
+`;
+      
+      console.log("Adding instructions for Whisper training");
+      archive.append(instructionFile, { name: 'WHISPER_TRAINING_GUIDE.md' });
+      
       // Finalize the archive
       console.log("Finalizing zip archive...");
       archive.finalize();
     } catch (error: any) {
       console.error('Export error:', error);
-      res.status(500).json({ message: error.message || 'Server error creating export' });
+      res.status(500).json({ 
+        message: error.message || 'Server error creating export',
+        stack: process.env.NODE_ENV === 'production' ? undefined : error.stack
+      });
     }
   });
 
