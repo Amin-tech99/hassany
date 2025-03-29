@@ -11,6 +11,7 @@ import { processAudio, cancelProcessing } from "./audio-processor";
 import { randomUUID } from "crypto";
 import jwt from "jsonwebtoken";
 import archiver from "archiver";
+import { execAsync } from "./utils";
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -873,6 +874,62 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Log received IDs for debugging
       console.log("Checking existence for parsed numeric IDs:", ids);
       
+      // Helper function to find segment file on disk
+      const findSegmentFileOnDisk = async (segmentId: number): Promise<string | null> => {
+        try {
+          // Check in the upload directory and its subdirectories for segment files
+          const uploadsDir = path.join(process.cwd(), "uploads");
+          const segmentsDir = path.join(uploadsDir, "segments");
+          
+          // Look for files in format: segment_X.mp3 or with segmentId in folder names
+          const filePatterns = [
+            path.join(segmentsDir, `**`, `segment_${segmentId}.mp3`),
+            path.join(segmentsDir, `**`, `*${segmentId}*.mp3`),
+            path.join(segmentsDir, `**`, `*_${segmentId}.mp3`),
+            path.join(segmentsDir, `**`, `*${segmentId}.*`)
+          ];
+          
+          // Use fs.glob to find matching files if available, otherwise scan directories manually
+          for (const filePattern of filePatterns) {
+            // Use glob pattern for the recursive search
+            const { stdout } = await execAsync(`find "${segmentsDir}" -type f -name "segment_${segmentId}.mp3" -o -name "*${segmentId}*.mp3" -o -name "*_${segmentId}.mp3"`);
+            const files = stdout.trim().split("\n").filter(f => f);
+            
+            if (files.length > 0) {
+              console.log(`Found segment ${segmentId} file on disk:`, files[0]);
+              return files[0];
+            }
+          }
+          
+          // Scan all audio_file_id directories as a last resort
+          const audioFileDirs = await fsPromises.readdir(segmentsDir);
+          for (const dir of audioFileDirs) {
+            if (dir.startsWith('file_')) {
+              const fileDir = path.join(segmentsDir, dir);
+              const stat = await fsPromises.stat(fileDir);
+              if (stat.isDirectory()) {
+                const segmentFiles = await fsPromises.readdir(fileDir);
+                const matchingFile = segmentFiles.find((f: string) => {
+                  const numberMatch = f.match(/segment_(\d+)/i);
+                  return numberMatch && parseInt(numberMatch[1]) === segmentId;
+                });
+                
+                if (matchingFile) {
+                  const filePath = path.join(fileDir, matchingFile);
+                  console.log(`Found segment ${segmentId} in directory ${dir}:`, filePath);
+                  return filePath;
+                }
+              }
+            }
+          }
+          
+          return null;
+        } catch (error) {
+          console.error(`Error searching for segment ${segmentId} file:`, error);
+          return null;
+        }
+      };
+      
       for (const id of ids) {
         try {
           // Get the segment
@@ -880,51 +937,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
           
           // Try to get the segment directly using the parsed numeric ID
           let segment = await storage.getAudioSegmentById(id);
+          let segmentPath = segment?.segmentPath;
+          
           console.log(`Direct lookup result for ID ${id}:`, segment ? `Found (Path: ${segment.segmentPath})` : 'Not Found');
           
-          // If not found by direct ID, try the fallback
-          if (!segment) {
-            console.log(`Segment with direct ID ${id} not found, attempting fallback lookup...`);
+          // If segment not found in storage or path doesn't exist, try alternative methods
+          if (!segment || !segmentPath || !fs.existsSync(segmentPath)) {
+            console.log(`Segment with direct ID ${id} not found or path invalid, attempting fallback...`);
             
-            try {
-              const audioFiles = await storage.getAudioFiles(0, true); // Get all files
-              console.log(`Fallback: Checking segments in ${audioFiles.length} audio files for ID ${id}`);
+            // Look up file on disk as a fallback
+            const diskPath = await findSegmentFileOnDisk(id);
+            if (diskPath && fs.existsSync(diskPath)) {
+              segmentPath = diskPath;
+              console.log(`Found segment file on disk: ${diskPath}`);
               
-              for (const file of audioFiles) {
-                if (file.segments && Array.isArray(file.segments)) {
-                  const foundSegment = file.segments.find((s: any) => s.id === id);
-                  if (foundSegment) {
-                    segment = foundSegment;
-                    console.log(`Fallback success: Found segment with ID ${id} in audio file ${file.id}`);
-                    break; // Found it, stop searching this file's segments
+              // Create temporary segment object for zip
+              segment = {
+                id,
+                segmentPath: diskPath,
+                audioFileId: 0,
+                startTime: 0,
+                endTime: 0,
+                duration: 0,
+                status: "available",
+                assignedTo: null,
+                transcribedBy: null,
+                reviewedBy: null,
+                createdAt: new Date(),
+                updatedAt: new Date()
+              };
+            } else {
+              // Fallback method: try to find segment in audio files
+              try {
+                const audioFiles = await storage.getAudioFiles(0, true); // Get all files
+                console.log(`Fallback: Checking segments in ${audioFiles.length} audio files for ID ${id}`);
+                
+                for (const file of audioFiles) {
+                  if (file.segments && Array.isArray(file.segments)) {
+                    const foundSegment = file.segments.find((s: any) => s.id === id);
+                    if (foundSegment) {
+                      segment = foundSegment;
+                      segmentPath = foundSegment.segmentPath;
+                      console.log(`Fallback success: Found segment with ID ${id} in audio file ${file.id}`);
+                      break; // Found it, stop searching this file's segments
+                    }
                   }
                 }
+              } catch (lookupErr) {
+                console.error(`Fallback Error: Error during alternative segment lookup for ID ${id}:`, lookupErr);
               }
-              if (!segment) {
-                 console.log(`Fallback failed: Segment ID ${id} not found in any audio file segments.`);
-              }
-            } catch (lookupErr) {
-              console.error(`Fallback Error: Error during alternative segment lookup for ID ${id}:`, lookupErr);
             }
           }
           
-          if (!segment) {
+          if (!segment || !segmentPath) {
             console.log(`Final result: Segment ${id} not found after all attempts`);
             errors.push({ id, error: "Segment not found" });
             continue;
           }
           
           // Store segment path for debugging
-          segmentPaths[id] = segment.segmentPath;
-          console.log(`Segment ${id} found. Path: ${segment.segmentPath}`);
+          segmentPaths[id] = segmentPath;
+          console.log(`Segment ${id} found. Path: ${segmentPath}`);
           
           // Check if the audio file exists
-          if (!fs.existsSync(segment.segmentPath)) {
-            console.log(`Audio file check failed for segment ${id}: Path ${segment.segmentPath} does not exist.`);
+          if (!fs.existsSync(segmentPath)) {
+            console.log(`Audio file check failed for segment ${id}: Path ${segmentPath} does not exist.`);
             errors.push({ id, error: "Audio file not found on server" });
             continue;
           }
-          console.log(`Audio file check passed for segment ${id}: Path ${segment.segmentPath} exists.`);
+          console.log(`Audio file check passed for segment ${id}: Path ${segmentPath} exists.`);
           
           validSegmentCount++;
         } catch (err) {
@@ -996,31 +1077,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process each segment and add audio files to the archive
       for (const id of ids) {
         try {
-          // Get the segment
-          console.log(`Looking up segment with ID: ${id}`);
-          const segment = await storage.getAudioSegmentById(id);
-          
-          if (!segment) {
-            console.error(`Segment ${id} not found in storage`);
-            continue; // Already checked above
+          // Use the segment paths we've already verified
+          const segmentPath = segmentPaths[id];
+          if (!segmentPath) {
+            console.error(`Missing segment path for ID ${id} during zip creation`);
+            continue;
           }
           
-          // Check if the segment audio file exists
-          console.log(`Checking for segment file: ${segment.segmentPath}`);
-          if (!fs.existsSync(segment.segmentPath)) {
-            console.error(`Audio file doesn't exist: ${segment.segmentPath}`);
-            continue; // Already checked above
-          }
-          
-          console.log(`Adding segment ${id} to zip: ${segment.segmentPath}`);
+          console.log(`Adding segment ${id} to zip: ${segmentPath}`);
           
           // Add file to archive with a meaningful name
-          const audioFilename = `Segment_${segment.id}.wav`;
-          archive.file(segment.segmentPath, { name: audioFilename });
+          const audioFilename = `Segment_${id}.mp3`;
+          archive.file(segmentPath, { name: audioFilename });
           
           // Add segment to successful results
           segmentsData.push({
-            id: segment.id,
+            id: id,
             filename: audioFilename
           });
         } catch (err) {
@@ -1046,7 +1118,7 @@ Generated: ${new Date().toISOString()}
 Number of segments: ${segmentsData.length}
 
 Included segments:
-${segmentsData.map(s => `- Segment_${s.id}.wav`).join('\n')}
+${segmentsData.map(s => `- Segment_${s.id}.mp3`).join('\n')}
 `;
       archive.append(readmeContent, { name: 'README.txt' });
       
