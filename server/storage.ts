@@ -75,6 +75,7 @@ export interface IStorage {
   // Audio file operations
   createAudioFile(file: InsertAudioFile): Promise<AudioFile>;
   getAudioFiles(userId: number, isAdmin: boolean): Promise<any[]>;
+  getAllAudioFiles(): Promise<Map<number, AudioFile>>;
   getAudioFileById(id: number): Promise<AudioFile | undefined>;
   updateAudioFile(id: number, updates: Partial<AudioFile>): Promise<AudioFile>;
   updateAudioFileStatus(id: number, status: string): Promise<AudioFile>;
@@ -231,6 +232,10 @@ export class MemStorage implements IStorage {
       segments: file.segments,
       processingProgress: file.status === "processing" ? Math.floor(Math.random() * 100) : undefined // Mock progress for demo
     }));
+  }
+
+  async getAllAudioFiles(): Promise<Map<number, AudioFile>> {
+    return this.audioFiles;
   }
 
   async getAudioFileById(id: number): Promise<AudioFile | undefined> {

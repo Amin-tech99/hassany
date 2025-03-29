@@ -1822,5 +1822,73 @@ ${addedSegments.map(s => `- ${s.filename}`).join('\n')}
     });
   }
 
+  // Add endpoint to clean up processed audio files
+  app.post("/api/audio/cleanup", isAuthenticated, isAdmin, async (req, res) => {
+    try {
+      // Get all audio files with processed status
+      const audioFilesMap = await storage.getAllAudioFiles();
+      const audioFiles = Array.from(audioFilesMap.values())
+        .filter(file => file.status === "processed");
+      
+      if (audioFiles.length === 0) {
+        return res.status(200).json({ message: "No processed audio files to clean up", filesRemoved: 0 });
+      }
+      
+      let filesRemoved = 0;
+      const errors: Array<{fileId: number, error: string}> = [];
+      
+      // Process each file
+      for (const file of audioFiles) {
+        try {
+          // Get all segments for this file
+          const segments = await storage.getAudioSegmentsByFileId(file.id);
+          
+          // Delete each segment file
+          for (const segment of segments) {
+            try {
+              if (fs.existsSync(segment.segmentPath)) {
+                await fs.promises.unlink(segment.segmentPath);
+              }
+            } catch (err) {
+              console.error(`Error deleting segment file ${segment.segmentPath}:`, err);
+              // Continue with other segments even if one fails
+            }
+          }
+          
+          // Delete the original file if it exists
+          if (fs.existsSync(file.originalPath)) {
+            await fs.promises.unlink(file.originalPath);
+          }
+          
+          // Delete the segments directory if it exists
+          if (file.processedPath && fs.existsSync(file.processedPath)) {
+            await fs.promises.rmdir(file.processedPath, { recursive: true });
+          }
+          
+          // Update the file status to indicate it's been cleaned up
+          await storage.updateAudioFile(file.id, {
+            status: "cleaned_up",
+            originalPath: "", // Clear the path since file is deleted
+            processedPath: null,
+          });
+          
+          filesRemoved++;
+        } catch (err) {
+          console.error(`Error cleaning up file ${file.id}:`, err);
+          errors.push({ fileId: file.id, error: err instanceof Error ? err.message : "Unknown error" });
+        }
+      }
+      
+      res.status(200).json({ 
+        message: `Successfully cleaned up ${filesRemoved} audio files`, 
+        filesRemoved,
+        errors: errors.length > 0 ? errors : undefined
+      });
+    } catch (error: any) {
+      console.error("Error in cleanup endpoint:", error);
+      res.status(500).json({ message: error.message });
+    }
+  });
+
   return createServer(app);
 }
