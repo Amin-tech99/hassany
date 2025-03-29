@@ -11,6 +11,7 @@ import { processAudio, cancelProcessing } from "./audio-processor";
 import { randomUUID } from "crypto";
 import jwt from "jsonwebtoken";
 import archiver from "archiver";
+import { AudioFile, AudioSegment } from '@shared/schema'; // Import correct types
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = path.join(process.cwd(), "uploads");
@@ -316,7 +317,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Ensure the path is absolute or resolve it relative to a known base directory
-      // Assuming segmentPath is stored relative to the project root or uploads dir
       const absolutePath = path.resolve(segmentPath); // Use path.resolve for robustness
       
       console.log(`Attempting to serve file from path: ${absolutePath}`);
@@ -324,7 +324,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if the file actually exists on the server filesystem
       if (!fs.existsSync(absolutePath)) {
         console.error(`Audio file not found on disk at path: ${absolutePath} for segment ${segmentId}`);
-        // Optionally, try reconstructing known paths if applicable, or just fail
         return res.status(404).json({ message: "Audio file not found on server." });
       }
       
@@ -334,9 +333,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.download(absolutePath, filename, (err) => {
         if (err) {
-          // Handle errors that occur *after* headers may have been sent
           console.error(`Error during file download transmission for segment ${segmentId}:`, err);
-          // Avoid sending another response if headers are already sent
           if (!res.headersSent) {
              res.status(500).json({ message: "Error sending the audio file." });
           }
@@ -693,1173 +690,248 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Add transcription download endpoint
-  app.get("/api/transcriptions/download", isAuthenticated, async (req, res) => {
-    try {
-      // Get segment IDs from query parameters
-      const segmentIds = req.query.id;
-      let ids: number[] = [];
-      
-      if (Array.isArray(segmentIds)) {
-        ids = segmentIds.map(id => {
-          // Handle both numeric IDs and "Segment_X" format
-          if (typeof id === 'string' && id.includes('Segment_')) {
-            const match = id.match(/Segment_(\d+)/i);
-            return match && match[1] ? parseInt(match[1], 10) : NaN;
-          }
-          return parseInt(id as string);
-        }).filter(id => !isNaN(id));
-      } else if (segmentIds) {
-        const idStr = segmentIds as string;
-        // Handle both numeric IDs and "Segment_X" format
-        if (idStr.includes('Segment_')) {
-          const match = idStr.match(/Segment_(\d+)/i);
-          if (match && match[1]) {
-            const parsedId = parseInt(match[1], 10);
-            if (!isNaN(parsedId)) {
-              ids = [parsedId];
-            }
-          }
-        } else {
-          const parsedId = parseInt(idStr);
-          if (!isNaN(parsedId)) {
-            ids = [parsedId];
-          }
-        }
-      }
-      
-      if (ids.length === 0) {
-        return res.status(400).json({ message: "No valid segment IDs provided" });
-      }
-      
-      // Get transcriptions for each segment
-      const transcriptionsData = [];
-      const errors = [];
-      
-      for (const id of ids) {
-        try {
-          // Get the segment
-          const segment = await storage.getAudioSegmentById(id);
-          if (!segment) {
-            errors.push({ id, error: "Segment not found" });
-            continue;
-          }
-          
-          // Get transcription for this segment
-          const transcription = await storage.getTranscriptionBySegmentId(id);
-          
-          if (!transcription) {
-            errors.push({ id, error: "Transcription not found for this segment" });
-            continue;
-          }
-          
-          // Format the data for downloading
-          transcriptionsData.push({
-            id: transcription.id,
-            segmentId: segment.id,
-            text: transcription.text,
-            audioId: `Segment_${segment.id}`,
-            duration: segment.duration,
-            startTime: segment.startTime,
-            endTime: segment.endTime,
-            status: transcription.status,
-            createdAt: transcription.createdAt,
-            updatedAt: transcription.updatedAt
-          });
-        } catch (err) {
-          errors.push({ id, error: err instanceof Error ? err.message : "Unknown error" });
-        }
-      }
-      
-      if (transcriptionsData.length === 0) {
-        return res.status(404).json({ 
-          message: "No transcriptions found for the provided segment IDs",
-          errors: errors.length > 0 ? errors : undefined
-        });
-      }
-      
-      // Create JSON content
-      const jsonContent = JSON.stringify(transcriptionsData, null, 2);
-      
-      // Set download headers
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const filename = `transcriptions_${timestamp}.json`;
-      
-      res.setHeader('Content-Type', 'application/json');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      
-      // Send the JSON content as response
-      res.send(jsonContent);
-      
-    } catch (error: any) {
-      console.error('Download error:', error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Add audio segments download endpoint (as ZIP)
-  app.get("/api/segments/download-audio", isAuthenticated, async (req, res) => {
-    try {
-      console.log("EMERGENCY FIX: Starting segment download with emergency fix enabled");
-      
-      // Get segment IDs from query parameters
-      const segmentIdParams = req.query.id;
-      let rawIds: (string | number)[] = [];
-
-      if (Array.isArray(segmentIdParams)) {
-        rawIds = segmentIdParams.map(id => id as string | number);
-      } else if (segmentIdParams) {
-        rawIds = [segmentIdParams as string | number];
-      }
-      
-      console.log("Raw segment ID parameters received:", rawIds);
-      
-      // Create all necessary directories
-      const uploadsDir = path.join(process.cwd(), "uploads");
-      const segmentsDir = path.join(uploadsDir, "segments");
-      const exportsDir = path.join(uploadsDir, "exports");
-      const emergencyDir = path.join(segmentsDir, "emergency");
-      
-      console.log("EMERGENCY FIX: Creating directories if needed");
-      
-      // Ensure directories exist
-      try {
-        if (!existsSync(uploadsDir)) {
-          await fsPromises.mkdir(uploadsDir, { recursive: true });
-          console.log(`Created uploads directory: ${uploadsDir}`);
-        }
-        
-        if (!existsSync(segmentsDir)) {
-          await fsPromises.mkdir(segmentsDir, { recursive: true });
-          console.log(`Created segments directory: ${segmentsDir}`);
-        }
-        
-        if (!existsSync(exportsDir)) {
-          await fsPromises.mkdir(exportsDir, { recursive: true });
-          console.log(`Created exports directory: ${exportsDir}`);
-        }
-        
-        if (!existsSync(emergencyDir)) {
-          await fsPromises.mkdir(emergencyDir, { recursive: true });
-          console.log(`Created emergency directory: ${emergencyDir}`);
-        }
-      } catch (dirError) {
-        console.error("Error creating directories:", dirError);
-      }
-      
-      // Create a timestamp for the zip filename and path
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const zipFilename = `audio_segments_${timestamp}.zip`;
-      const zipFilePath = path.join(exportsDir, zipFilename);
-      
-      console.log(`EMERGENCY FIX: Creating zip file at: ${zipFilePath}`);
-      
-      // Create a write stream for the zip file
-      const output = fs.createWriteStream(zipFilePath);
-      const archive = archiver('zip', {
-        zlib: { level: 9 } // Maximum compression
-      });
-      
-      // Set up event listeners
-      output.on('close', async () => {
-        try {
-          console.log(`EMERGENCY FIX: Zip file created successfully. Size: ${archive.pointer()} bytes`);
-          // Send the zip file as download
-          res.download(zipFilePath, zipFilename, (err) => {
-            if (err) {
-              console.error('Download error:', err);
-              if (!res.headersSent) {
-                res.status(500).json({ message: err.message });
-              }
-            }
-            // Remove the temporary zip file after sending
-            setTimeout(() => {
-              try {
-                fs.unlink(zipFilePath, (unlinkErr: NodeJS.ErrnoException | null) => {
-                  if (unlinkErr) console.error('Error removing temp zip file:', unlinkErr);
-                });
-              } catch (unlinkError) {
-                console.error("Error removing zip file:", unlinkError);
-              }
-            }, 5000); // Give a 5 second delay to ensure download starts
-          });
-        } catch (err) {
-          console.error('Error sending zip file:', err);
-          if (!res.headersSent) {
-            res.status(500).json({ message: 'Error sending zip file' });
-          }
-        }
-      });
-      
-      archive.on('warning', (err: Error) => {
-        console.warn('Zip warning:', err);
-        // Don't fail on warnings
-      });
-      
-      archive.on('error', (err: Error) => {
-        console.error('Zip creation error:', err);
-        if (!res.headersSent) {
-          res.status(500).json({ message: 'Error creating zip file: ' + err.message });
-        }
-      });
-      
-      // Pipe archive data to the output file
-      archive.pipe(output);
-      
-      console.log("EMERGENCY FIX: Creating emergency audio files for segments");
-      let addedFiles = 0;
-      
-      // For each request ID, create an emergency audio file
-      for (const rawId of rawIds) {
-        try {
-          let segmentId: number = 0;
-          
-          // Parse the ID
-          if (typeof rawId === 'number') {
-            segmentId = rawId;
-          } else if (typeof rawId === 'string') {
-            if (rawId.includes('Segment_')) {
-              const match = rawId.match(/Segment_(\d+)/i);
-              if (match && match[1]) {
-                segmentId = parseInt(match[1], 10);
-              }
-            } else {
-              const parsedNum = parseInt(rawId, 10);
-              if (!isNaN(parsedNum)) {
-                segmentId = parsedNum;
-              }
-            }
-          }
-          
-          if (segmentId <= 0) {
-            console.log(`Invalid segment ID: ${rawId}, skipping`);
-            continue;
-          }
-          
-          console.log(`EMERGENCY FIX: Processing segment ID: ${segmentId}`);
-          
-          // Create an emergency audio file for this segment
-          const emergencyFilePath = path.join(emergencyDir, `segment_${segmentId}.mp3`);
-          
-          // Create file if it doesn't exist (simple dummy MP3 content)
-          if (!fs.existsSync(emergencyFilePath)) {
-            console.log(`Creating emergency file for segment ${segmentId}: ${emergencyFilePath}`);
-            try {
-              // Create a minimal MP3 file
-              await fsPromises.writeFile(emergencyFilePath, "EMERGENCY AUDIO FILE", 'utf8');
-            } catch (fileError) {
-              console.error(`Error creating emergency file for segment ${segmentId}:`, fileError);
-            }
-          }
-          
-          // Add file to archive
-          if (fs.existsSync(emergencyFilePath)) {
-            console.log(`Adding emergency file for segment ${segmentId} to zip`);
-            
-            // Add to zip
-            const audioFilename = `Segment_${segmentId}.mp3`;
-            archive.file(emergencyFilePath, { name: audioFilename });
-            addedFiles++;
-          } else {
-            console.error(`Failed to create emergency file for segment ${segmentId}`);
-          }
-        } catch (idError) {
-          console.error(`Error processing ID ${rawId}:`, idError);
-        }
-      }
-      
-      // If no files were added, add a dummy file so the zip isn't empty
-      if (addedFiles === 0) {
-        console.log("EMERGENCY FIX: No files were added, adding a dummy file");
-        const dummyContent = "This is a dummy audio file created as a placeholder.";
-        archive.append(dummyContent, { name: 'dummy_segment.mp3' });
-      }
-      
-      // Include a README.txt file with information about the segments
-      const readmeContent = `Audio Segments Export (EMERGENCY MODE)
-Generated: ${new Date().toISOString()}
-Number of segments: ${addedFiles}
-
-This ZIP was created in emergency mode, which creates placeholder files for all requested segments.
-`;
-      archive.append(readmeContent, { name: 'README.txt' });
-      
-      // Finalize the archive
-      console.log("EMERGENCY FIX: Finalizing zip archive");
-      archive.finalize();
-      
-    } catch (error: any) {
-      console.error('EMERGENCY FIX: Download error:', error);
-      res.status(500).json({ message: error.message || 'Server error creating download' });
-    }
-  });
-
-  // Debug endpoint to check segment storage and file system
-  app.get("/api/debug/segments/:id", isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const segmentId = parseInt(req.params.id);
-      console.log(`Debug request for segment ${segmentId}`);
-      
-      // Collection point for all data
-      const debugData: any = {
-        segmentId,
-        storageLookup: null,
-        fileSystemChecks: [],
-        reconstructionAttempts: []
-      };
-      
-      // 1. Try direct storage lookup
-      const segment = await storage.getAudioSegmentById(segmentId);
-      debugData.storageLookup = segment 
-        ? { found: true, path: segment.segmentPath, exists: fs.existsSync(segment.segmentPath) }
-        : { found: false };
-      
-      // 2. Check uploads directory structure
-      const uploadsDir = path.join(process.cwd(), "uploads");
-      const segmentsDir = path.join(uploadsDir, "segments");
-      
-      debugData.directories = {
-        uploadsExists: fs.existsSync(uploadsDir),
-        segmentsDirExists: fs.existsSync(segmentsDir),
-        uploadsDirContent: fs.existsSync(uploadsDir) ? await fsPromises.readdir(uploadsDir) : [],
-        segmentsDirContent: fs.existsSync(segmentsDir) ? await fsPromises.readdir(segmentsDir) : []
-      };
-      
-      // 3. Search for file_X directories
-      if (fs.existsSync(segmentsDir)) {
-        const fileIdDirs = await fsPromises.readdir(segmentsDir);
-        debugData.fileIdDirectories = [];
-        
-        for (const dir of fileIdDirs) {
-          if (dir.startsWith('file_')) {
-            const fileDir = path.join(segmentsDir, dir);
-            if ((await fsPromises.stat(fileDir)).isDirectory()) {
-              try {
-                const files = await fsPromises.readdir(fileDir);
-                const matchingFiles = files.filter(file => 
-                  file.includes(`segment_${segmentId}`) || 
-                  file.includes(`_${segmentId}.`) || 
-                  file.includes(`${segmentId}_`)
-                );
-                
-                debugData.fileIdDirectories.push({
-                  directory: dir,
-                  path: fileDir,
-                  fileCount: files.length,
-                  matchingFiles,
-                  hasMatchingFiles: matchingFiles.length > 0
-                });
-                
-                // If matching files found, record full paths
-                for (const file of matchingFiles) {
-                  const fullPath = path.join(fileDir, file);
-                  debugData.fileSystemChecks.push({
-                    path: fullPath,
-                    exists: fs.existsSync(fullPath)
-                  });
-                }
-              } catch (err) {
-                debugData.fileIdDirectories.push({
-                  directory: dir,
-                  path: fileDir,
-                  error: err instanceof Error ? err.message : String(err)
-                });
-              }
-            }
-          }
-        }
-      }
-      
-      // 4. Try path reconstruction from segment path if available
-      if (segment && segment.segmentPath) {
-        const fileName = path.basename(segment.segmentPath);
-        debugData.originalFilename = fileName;
-        
-        // Check if it's directly accessible
-        debugData.reconstructionAttempts.push({
-          attempt: "Original path",
-          path: segment.segmentPath,
-          exists: fs.existsSync(segment.segmentPath)
-        });
-        
-        // Try different segment directory structures
-        const patterns = [
-          path.join(segmentsDir, fileName),
-          path.join(segmentsDir, `segment_${segmentId}.mp3`),
-          path.join(segmentsDir, `segment_${segmentId}.wav`)
-        ];
-        
-        // Check each audio file directory for the segment
-        if (fs.existsSync(segmentsDir)) {
-          const dirs = await fsPromises.readdir(segmentsDir);
-          for (const dir of dirs) {
-            if (dir.startsWith('file_')) {
-              const audioFileDir = path.join(segmentsDir, dir);
-              if ((await fsPromises.stat(audioFileDir)).isDirectory()) {
-                patterns.push(path.join(audioFileDir, fileName));
-                patterns.push(path.join(audioFileDir, `segment_${segmentId}.mp3`));
-                patterns.push(path.join(audioFileDir, `segment_${segmentId}.wav`));
-              }
-            }
-          }
-        }
-        
-        // Check all patterns
-        for (const patternPath of patterns) {
-          debugData.reconstructionAttempts.push({
-            attempt: "Pattern check",
-            path: patternPath,
-            exists: fs.existsSync(patternPath)
-          });
-        }
-      }
-      
-      // 5. Try the comprehensive search function
-      try {
-        // This functionality requires the utils module which we removed
-        // const diskPath = await findSegmentFile(segmentId);
-        
-        // Create a test file path for fallback
-        const testFileDir = path.join(segmentsDir, "file_test");
-        if (!fs.existsSync(testFileDir)) {
-          await fsPromises.mkdir(testFileDir, { recursive: true });
-        }
-        
-        const testFilePath = path.join(testFileDir, `segment_${segmentId}.mp3`);
-        if (!fs.existsSync(testFilePath)) {
-          // Create empty file
-          await fsPromises.writeFile(testFilePath, "TEST AUDIO FILE", 'utf8');
-        }
-        
-        debugData.comprehensiveSearch = {
-          found: true,
-          path: testFilePath,
-          exists: fs.existsSync(testFilePath)
-        };
-      } catch (err) {
-        debugData.comprehensiveSearch = {
-          error: err instanceof Error ? err.message : String(err)
-        };
-      }
-      
-      // Return all debug data
-      res.json(debugData);
-    } catch (error: any) {
-      console.error(`Debug endpoint error:`, error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Client debug utility to get file paths
-  app.get("/api/debug/directories", isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const rootDir = process.cwd();
-      const uploadsDir = path.join(rootDir, "uploads");
-      const segmentsDir = path.join(uploadsDir, "segments");
-      const exportsDir = path.join(uploadsDir, "exports");
-      
-      const directoryInfo = {
-        rootDir,
-        rootExists: fs.existsSync(rootDir),
-        rootContents: fs.existsSync(rootDir) ? await fsPromises.readdir(rootDir) : [],
-        uploadsDir,
-        uploadsExists: fs.existsSync(uploadsDir),
-        uploadsContents: fs.existsSync(uploadsDir) ? await fsPromises.readdir(uploadsDir) : [],
-        segmentsDir,
-        segmentsExists: fs.existsSync(segmentsDir),
-        segmentsContents: fs.existsSync(segmentsDir) ? await fsPromises.readdir(segmentsDir) : [],
-        exportsDir,
-        exportsExists: fs.existsSync(exportsDir),
-        exportsContents: fs.existsSync(exportsDir) ? await fsPromises.readdir(exportsDir) : [],
-        environment: {
-          platform: process.platform,
-          nodeVersion: process.version,
-          env: process.env.NODE_ENV || 'development'
-        }
-      };
-      
-      res.json(directoryInfo);
-    } catch (error: any) {
-      console.error(`Directory debug endpoint error:`, error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Fix to directly create segment files in the expected location for testing
-  app.post("/api/debug/create-test-segment", isAuthenticated, isAdmin, async (req, res) => {
-    try {
-      const { segmentId } = req.body;
-      if (!segmentId || typeof segmentId !== 'number') {
-        return res.status(400).json({ message: "Valid segmentId is required" });
-      }
-      
-      // Create all necessary directories
-      await ensureDirectoriesExist();
-      
-      // Create test audio directories
-      const segmentsDir = path.join(process.cwd(), "uploads", "segments");
-      const testFileDir = path.join(segmentsDir, `file_test`);
-      
-      if (!fs.existsSync(testFileDir)) {
-        await fsPromises.mkdir(testFileDir, { recursive: true });
-      }
-      
-      // Create a simple test audio file (1 second of silence)
-      const testAudioPath = path.join(testFileDir, `segment_${segmentId}.mp3`);
-      
-      // Check if we need to create the file
-      if (!fs.existsSync(testAudioPath)) {
-        try {
-          // Simple solution: copy an existing MP3 file if available
-          const existingFiles = await fsPromises.readdir(segmentsDir);
-          let sourcePath = null;
-          
-          // Find an existing MP3 file to copy
-          for (const dir of existingFiles) {
-            if (dir.startsWith('file_')) {
-              const dirPath = path.join(segmentsDir, dir);
-              if ((await fsPromises.stat(dirPath)).isDirectory()) {
-                const files = await fsPromises.readdir(dirPath);
-                const mp3File = files.find(f => f.endsWith('.mp3'));
-                if (mp3File) {
-                  sourcePath = path.join(dirPath, mp3File);
-                  break;
-                }
-              }
-            }
-          }
-          
-          if (sourcePath && fs.existsSync(sourcePath)) {
-            // Copy the existing file
-            await fsPromises.copyFile(sourcePath, testAudioPath);
-          } else {
-            // If no source file, create an empty file
-            await fsPromises.writeFile(testAudioPath, "TEST AUDIO FILE", 'utf8');
-          }
-        } catch (err) {
-          console.error(`Failed to create test audio file:`, err);
-          return res.status(500).json({ message: `Failed to create test audio file: ${err}` });
-        }
-      }
-      
-      // Create or update segment in storage
-      let segment = await storage.getAudioSegmentById(segmentId);
-      
-      if (segment) {
-        // Update existing segment with correct path
-        segment = await storage.updateAudioSegment(segmentId, {
-          segmentPath: testAudioPath
-        });
-      } else {
-        // Create new segment
-        segment = await storage.createAudioSegment({
-          audioFileId: 999, // Test file ID
-          segmentPath: testAudioPath,
-          startTime: 0,
-          endTime: 1000, // 1 second
-          duration: 1000,
-          status: 'available',
-          assignedTo: null,
-          transcribedBy: null,
-          reviewedBy: null
-        });
-      }
-      
-      res.json({
-        success: true,
-        message: "Test segment created successfully",
-        segment,
-        path: testAudioPath,
-        exists: fs.existsSync(testAudioPath)
-      });
-    } catch (error: any) {
-      console.error(`Create test segment error:`, error);
-      res.status(500).json({ message: error.message });
-    }
-  });
-
-  // Special direct download endpoint for segment 14 - NO AUTH REQUIRED
-  app.get("/api/segments/14/direct-download", async (req, res) => {
-    try {
-      console.log("DIRECT DOWNLOAD: Starting direct download for segment 14");
-      
-      // Create all necessary directories
-      const uploadsDir = path.join(process.cwd(), "uploads");
-      const segmentsDir = path.join(uploadsDir, "segments");
-      const specialDir = path.join(segmentsDir, "special");
-      
-      console.log("DIRECT DOWNLOAD: Creating directories if needed");
-      
-      // Ensure directories exist
-      try {
-        if (!existsSync(uploadsDir)) {
-          await fsPromises.mkdir(uploadsDir, { recursive: true });
-          console.log(`Created uploads directory: ${uploadsDir}`);
-        }
-        
-        if (!existsSync(segmentsDir)) {
-          await fsPromises.mkdir(segmentsDir, { recursive: true });
-          console.log(`Created segments directory: ${segmentsDir}`);
-        }
-        
-        if (!existsSync(specialDir)) {
-          await fsPromises.mkdir(specialDir, { recursive: true });
-          console.log(`Created special directory: ${specialDir}`);
-        }
-      } catch (dirError) {
-        console.error("Error creating directories:", dirError);
-      }
-      
-      // Create a dummy MP3 file for segment 14
-      const dummyFilePath = path.join(specialDir, "segment_14.mp3");
-      
-      // Create the file if it doesn't exist
-      if (!existsSync(dummyFilePath)) {
-        console.log(`Creating dummy file at: ${dummyFilePath}`);
-        try {
-          await fsPromises.writeFile(dummyFilePath, "DUMMY MP3 CONTENT", 'utf8');
-        } catch (fileError) {
-          console.error("Error creating file:", fileError);
-        }
-      }
-      
-      // Check if file exists before trying to send it
-      if (existsSync(dummyFilePath)) {
-        console.log("DIRECT DOWNLOAD: File exists, sending now");
-        
-        // Set appropriate headers for MP3 download
-        res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('Content-Disposition', 'attachment; filename="Segment_14.mp3"');
-        
-        // Send the file directly
-        res.sendFile(dummyFilePath, { root: "/" }, (err) => {
-          if (err) {
-            console.error('DIRECT DOWNLOAD: Send file error:', err);
-            if (!res.headersSent) {
-              res.status(500).send('Error sending file');
-            }
-          } else {
-            console.log('DIRECT DOWNLOAD: File sent successfully');
-          }
-        });
-      } else {
-        console.error("DIRECT DOWNLOAD: File does not exist even after creation attempt");
-        res.status(404).send("File could not be created");
-      }
-    } catch (error) {
-      console.error("DIRECT DOWNLOAD ERROR:", error);
-      res.status(500).send('Internal server error');
-    }
-  });
-  
-  // Segment 14 direct download link - HTML page for easy access - NO AUTH REQUIRED
-  app.get("/api/segment14", async (req, res) => {
-    const downloadUrl = '/api/segments/14/direct-download';
-    const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Segment 14 Download</title>
-      <style>
-        body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
-        .download-button { 
-          display: inline-block; 
-          padding: 15px 30px; 
-          background-color: #4CAF50; 
-          color: white; 
-          text-decoration: none; 
-          font-size: 18px; 
-          border-radius: 4px;
-          margin: 20px;
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Segment 14 Direct Download</h1>
-      <p>Click the button below to download Segment 14:</p>
-      <a href="${downloadUrl}" class="download-button">Download Segment 14</a>
-      <p style="margin-top: 20px;">Emergency fix - No authentication required</p>
-    </body>
-    </html>
-    `;
-    
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
-  });
-
-  // Simple robust multi-segment ZIP download endpoint - NO AUTH REQUIRED
-  app.get("/api/segments/simple-download", async (req, res) => {
-    try {
-      console.log("SIMPLE DOWNLOAD: Starting simple multi-segment download");
-      console.log("Request path:", req.path);
-      console.log("Request query:", req.query);
-      
-      // Get segment IDs from query parameters
-      const segmentIdParams = req.query.id;
-      let segmentIds: number[] = [];
-
-      if (Array.isArray(segmentIdParams)) {
-        // If multiple IDs are provided
-        segmentIds = segmentIdParams
-          .map(id => {
-            if (typeof id === 'string') {
-              if (id.includes('Segment_')) {
-                const match = id.match(/Segment_(\d+)/i);
-                return match && match[1] ? parseInt(match[1], 10) : NaN;
-              }
-              return parseInt(id, 10);
-            }
-            return NaN;
-          })
-          .filter(id => !isNaN(id) && id > 0);
-      } else if (segmentIdParams) {
-        // If a single ID is provided
-        const id = segmentIdParams.toString();
-        if (id.includes('Segment_')) {
-          const match = id.match(/Segment_(\d+)/i);
-          if (match && match[1]) {
-            const parsedId = parseInt(match[1], 10);
-            if (!isNaN(parsedId) && parsedId > 0) {
-              segmentIds = [parsedId];
-            }
-          }
-        } else {
-          const parsedId = parseInt(id, 10);
-          if (!isNaN(parsedId) && parsedId > 0) {
-            segmentIds = [parsedId];
-          }
-        }
-      }
-      
-      console.log("Segment IDs to download:", segmentIds);
-      
-      // Create all necessary directories
-      const uploadsDir = path.join(process.cwd(), "uploads");
-      const segmentsDir = path.join(uploadsDir, "segments");
-      const exportsDir = path.join(uploadsDir, "exports");
-      const simpleDir = path.join(segmentsDir, "simple");
-      
-      console.log("SIMPLE DOWNLOAD: Ensuring directories exist");
-      
-      // Create directories if they don't exist
-      try {
-        for (const dir of [uploadsDir, segmentsDir, exportsDir, simpleDir]) {
-          if (!existsSync(dir)) {
-            await fsPromises.mkdir(dir, { recursive: true });
-            console.log(`Created directory: ${dir}`);
-          }
-        }
-      } catch (dirError) {
-        console.error("Error creating directories:", dirError);
-      }
-      
-      // Create a timestamp for the zip filename
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const zipFilename = `audio_segments_${timestamp}.zip`;
-      const zipFilePath = path.join(exportsDir, zipFilename);
-      
-      console.log(`SIMPLE DOWNLOAD: Creating zip at ${zipFilePath}`);
-      
-      // Create a write stream for the zip file
-      const output = fs.createWriteStream(zipFilePath);
-      const archive = archiver('zip', {
-        zlib: { level: 9 } // Maximum compression
-      });
-      
-      // Set up event listeners
-      output.on('close', async () => {
-        try {
-          console.log(`SIMPLE DOWNLOAD: Zip file created, size: ${archive.pointer()} bytes`);
-          // Send the zip file as download
-          res.download(zipFilePath, zipFilename, (err) => {
-            if (err) {
-              console.error('Download error:', err);
-              if (!res.headersSent) {
-                res.status(500).json({ message: err.message });
-              }
-            }
-            // Remove the temporary zip file after sending
-            setTimeout(() => {
-              try {
-                fs.unlink(zipFilePath, (unlinkErr: NodeJS.ErrnoException | null) => {
-                  if (unlinkErr) console.error('Error removing temp zip file:', unlinkErr);
-                });
-              } catch (unlinkError) {
-                console.error("Error cleaning up zip file:", unlinkError);
-              }
-            }, 5000); // Give a 5 second delay to ensure download starts
-          });
-        } catch (err) {
-          console.error('Error sending zip file:', err);
-          if (!res.headersSent) {
-            res.status(500).json({ message: 'Error sending zip file' });
-          }
-        }
-      });
-      
-      archive.on('warning', (err: Error) => {
-        console.warn('Zip warning:', err);
-      });
-      
-      archive.on('error', (err: Error) => {
-        console.error('Zip creation error:', err);
-        if (!res.headersSent) {
-          res.status(500).json({ message: 'Error creating zip file: ' + err.message });
-        }
-      });
-      
-      // Pipe archive data to the output file
-      archive.pipe(output);
-      
-      console.log("SIMPLE DOWNLOAD: Creating segment files");
-      
-      // Keep track of added segments
-      const addedSegments: { id: number; filename: string }[] = [];
-      
-      // Create and add files for each segment ID
-      for (const segmentId of segmentIds) {
-        try {
-          // Create a dummy file for this segment
-          const segmentFilename = `segment_${segmentId}.mp3`;
-          const segmentPath = path.join(simpleDir, segmentFilename);
-          
-          // Create the file if it doesn't exist
-          if (!existsSync(segmentPath)) {
-            console.log(`Creating segment file at: ${segmentPath}`);
-            
-            // Write a simple content to the file
-            await fsPromises.writeFile(segmentPath, `AUDIO SEGMENT ${segmentId}`, 'utf8');
-          }
-          
-          // Check if file was created successfully
-          if (existsSync(segmentPath)) {
-            // Add to the ZIP file
-            const archiveFilename = `Segment_${segmentId}.mp3`;
-            archive.file(segmentPath, { name: archiveFilename });
-            
-            // Record the segment
-            addedSegments.push({
-              id: segmentId,
-              filename: archiveFilename
-            });
-            
-            console.log(`Added segment ${segmentId} to zip`);
-          } else {
-            console.error(`Failed to create segment file at: ${segmentPath}`);
-          }
-        } catch (segmentError) {
-          console.error(`Error processing segment ${segmentId}:`, segmentError);
-        }
-      }
-      
-      // If no segments were added, add a dummy file
-      if (addedSegments.length === 0) {
-        console.log("SIMPLE DOWNLOAD: No segments were added, adding a dummy file");
-        archive.append("This is a dummy segment file.", { name: "dummy_segment.mp3" });
-      }
-      
-      // Add a README to the zip
-      const readmeContent = `Audio Segments Export (Simple Mode)
-Generated: ${new Date().toISOString()}
-Segments: ${addedSegments.map(s => s.id).join(', ')}
-
-Files included:
-${addedSegments.map(s => `- ${s.filename}`).join('\n')}
-`;
-      archive.append(readmeContent, { name: "README.txt" });
-      
-      // Finalize the zip
-      console.log("SIMPLE DOWNLOAD: Finalizing zip file");
-      archive.finalize();
-      
-    } catch (error: any) {
-      console.error("SIMPLE DOWNLOAD ERROR:", error);
-      res.status(500).json({ message: error.message || "Unknown error during download" });
-    }
-  });
-  
-  // Updated simple download page with multi-segment ZIP download - NO AUTH REQUIRED
-  app.get("/api/simple-download", async (req, res) => {
-    const html = `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <title>Download Audio Segments</title>
-      <style>
-        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background-color: #f5f5f5; }
-        h1 { color: #333; }
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        button { background: #4CAF50; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; }
-        .note { background: #f8f8f8; padding: 10px; border-left: 4px solid #4CAF50; margin: 20px 0; }
-        .segments { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; }
-        .segment-button { 
-          background: #f0f0f0; 
-          padding: 10px; 
-          border-radius: 4px; 
-          cursor: pointer; 
-          margin: 5px;
-          border: 1px solid #ddd;
-        }
-        .segment-button:hover { background: #e0e0e0; }
-        .segment-button.selected { background: #d4edda; border: 1px solid #4CAF50; }
-        .direct-links { 
-          margin-top: 20px; 
-          display: grid; 
-          grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); 
-          gap: 10px; 
-        }
-        .direct-link { 
-          display: block; 
-          background: #007bff; 
-          color: white; 
-          padding: 8px 8px; 
-          text-decoration: none; 
-          border-radius: 4px; 
-          text-align: center;
-          font-size: 14px;
-        }
-        .direct-link:hover { background: #0069d9; }
-        .zip-download-section {
-          margin: 30px 0;
-          padding: 20px;
-          background: #e9f7ef;
-          border-radius: 8px;
-          border: 1px solid #4CAF50;
-        }
-        .zip-button {
-          background: #28a745;
-          color: white;
-          padding: 12px 20px;
-          border: none;
-          border-radius: 4px;
-          font-size: 16px;
-          cursor: pointer;
-          margin-top: 15px;
-        }
-        .zip-button:hover {
-          background: #218838;
-        }
-        .control-buttons {
-          margin-top: 15px;
-          display: flex;
-          gap: 10px;
-          flex-wrap: wrap;
-        }
-        .btn {
-          padding: 8px 15px;
-          border-radius: 4px;
-          cursor: pointer;
-          border: none;
-        }
-        .btn-secondary {
-          background: #6c757d;
-          color: white;
-        }
-        .selection-info {
-          margin-top: 10px;
-          font-weight: bold;
-          color: #28a745;
-        }
-      </style>
-    </head>
-    <body>
-      <h1>Download Audio Segments</h1>
-      
-      <div class="note">
-        <p>This page allows you to download individual segments or multiple segments as a ZIP file.</p>
-        <p><strong>For audio with 37 segments:</strong> All segments are available for download below.</p>
-      </div>
-      
-      <div class="zip-download-section">
-        <h2>Download Multiple Segments as ZIP</h2>
-        <p>Select the segments you want to include in your ZIP file:</p>
-        
-        <div id="segment-selector" class="segments">
-          <!-- Segment buttons will go here -->
-        </div>
-        
-        <div class="control-buttons">
-          <button id="select-all" class="btn btn-secondary">Select All</button>
-          <button id="clear-selection" class="btn btn-secondary">Clear Selection</button>
-        </div>
-        
-        <div class="selection-info" id="selection-count">0 segments selected</div>
-        
-        <div class="form-group" style="margin-top: 15px;">
-          <button id="download-zip" class="zip-button">Download Selected Segments as ZIP</button>
-        </div>
-      </div>
-      
-      <h2>Direct Downloads (Individual Segments)</h2>
-      <p>Or download individual segments directly:</p>
-      
-      <div class="direct-links" id="direct-links">
-        <!-- Direct download links will be added here -->
-      </div>
-      
-      <script>
-        // Configuration - show up to 40 segments to cover all 37 segments
-        const MAX_SEGMENTS = 40;
-        
-        // DOM elements
-        const segmentSelector = document.getElementById('segment-selector');
-        const downloadZipButton = document.getElementById('download-zip');
-        const selectAllButton = document.getElementById('select-all');
-        const clearSelectionButton = document.getElementById('clear-selection');
-        const selectionCount = document.getElementById('selection-count');
-        const directLinksContainer = document.getElementById('direct-links');
-        
-        const selectedSegments = new Set();
-        
-        // Create buttons for segments 1-40
-        for (let i = 1; i <= MAX_SEGMENTS; i++) {
-          // Create segment selection buttons
-          const button = document.createElement('button');
-          button.className = 'segment-button';
-          button.textContent = i.toString();  // Just show the number
-          button.dataset.id = i.toString();
-          
-          button.addEventListener('click', function() {
-            // Toggle selection
-            if (selectedSegments.has(i)) {
-              selectedSegments.delete(i);
-              this.classList.remove('selected');
-            } else {
-              selectedSegments.add(i);
-              this.classList.add('selected');
-            }
-            updateSelectionCount();
-          });
-          
-          segmentSelector.appendChild(button);
-          
-          // Create direct download links
-          const link = document.createElement('a');
-          link.href = \`/api/segments/\${i}/direct-download\`;
-          link.className = 'direct-link';
-          link.textContent = \`Segment \${i}\`;
-          directLinksContainer.appendChild(link);
-        }
-        
-        // Update the selection count display
-        function updateSelectionCount() {
-          selectionCount.textContent = \`\${selectedSegments.size} segments selected\`;
-        }
-        
-        // Select all button
-        selectAllButton.addEventListener('click', function() {
-          for (let i = 1; i <= MAX_SEGMENTS; i++) {
-            selectedSegments.add(i);
-            document.querySelector(\`.segment-button[data-id="\${i}"]\`).classList.add('selected');
-          }
-          updateSelectionCount();
-        });
-        
-        // Clear selection button
-        clearSelectionButton.addEventListener('click', function() {
-          selectedSegments.clear();
-          document.querySelectorAll('.segment-button').forEach(btn => {
-            btn.classList.remove('selected');
-          });
-          updateSelectionCount();
-        });
-        
-        // Handle ZIP download
-        downloadZipButton.addEventListener('click', function() {
-          if (selectedSegments.size === 0) {
-            alert('Please select at least one segment to download');
-            return;
-          }
-          
-          // Build the URL with ID parameters
-          const params = Array.from(selectedSegments)
-            .map(id => 'id=' + id)
-            .join('&');
-          
-          // Navigate to the download URL
-          window.location.href = '/api/segments/zip-download?' + params;
-        });
-      </script>
-    </body>
-    </html>
-    `;
-    
-    res.setHeader('Content-Type', 'text/html');
-    res.send(html);
-  });
-
-  // Create direct download endpoints for all segments (up to 40) - NO AUTH REQUIRED
-  for (let i = 1; i <= 40; i++) {
-    app.get(`/api/segments/${i}/direct-download`, async (req, res) => {
-      try {
-        const segmentId = i;
-        console.log(`DIRECT DOWNLOAD: Starting direct download for segment ${segmentId}`);
-        
-        // Create all necessary directories
-        const uploadsDir = path.join(process.cwd(), "uploads");
-        const segmentsDir = path.join(uploadsDir, "segments");
-        const specialDir = path.join(segmentsDir, "direct");
-        
-        console.log(`DIRECT DOWNLOAD: Creating directories for segment ${segmentId}`);
-        
-        // Ensure directories exist
-        try {
-          for (const dir of [uploadsDir, segmentsDir, specialDir]) {
-            if (!existsSync(dir)) {
-              await fsPromises.mkdir(dir, { recursive: true });
-              console.log(`Created directory: ${dir}`);
-            }
-          }
-        } catch (dirError) {
-          console.error(`Error creating directories for segment ${segmentId}:`, dirError);
-        }
-        
-        // Create a dummy MP3 file for the segment
-        const dummyFilePath = path.join(specialDir, `segment_${segmentId}.mp3`);
-        
-        // Create the file if it doesn't exist
-        if (!existsSync(dummyFilePath)) {
-          console.log(`Creating dummy file for segment ${segmentId} at: ${dummyFilePath}`);
-          try {
-            await fsPromises.writeFile(dummyFilePath, `DUMMY MP3 CONTENT FOR SEGMENT ${segmentId}`, 'utf8');
-          } catch (fileError) {
-            console.error(`Error creating file for segment ${segmentId}:`, fileError);
-          }
-        }
-        
-        // Check if file exists before trying to send it
-        if (existsSync(dummyFilePath)) {
-          console.log(`DIRECT DOWNLOAD: File exists for segment ${segmentId}, sending now`);
-          
-          // Set appropriate headers for MP3 download
-          res.setHeader('Content-Type', 'audio/mpeg');
-          res.setHeader('Content-Disposition', `attachment; filename="Segment_${segmentId}.mp3"`);
-          
-          // Send the file directly
-          res.sendFile(dummyFilePath, { root: "/" }, (err) => {
-            if (err) {
-              console.error(`DIRECT DOWNLOAD: Send file error for segment ${segmentId}:`, err);
-              if (!res.headersSent) {
-                res.status(500).send('Error sending file');
-              }
-            } else {
-              console.log(`DIRECT DOWNLOAD: File sent successfully for segment ${segmentId}`);
-            }
-          });
-        } else {
-          console.error(`DIRECT DOWNLOAD: File does not exist for segment ${segmentId} even after creation attempt`);
-          res.status(404).send("File could not be created");
-        }
-      } catch (error) {
-        console.error(`DIRECT DOWNLOAD ERROR for segment ${i}:`, error);
-        res.status(500).send('Internal server error');
+  // --- Token Cleanup Function (Keep) ---
+  const downloadTokens = new Map<string, { userId: number, expires: Date, used: boolean }>();
+  function cleanupExpiredTokens() {
+    const now = new Date();
+    // Use forEach to avoid downlevelIteration issue
+    downloadTokens.forEach((data, token) => {
+      if (data.expires < now) {
+        downloadTokens.delete(token);
+        console.log(`Cleaned up expired download token: ${token}`);
       }
     });
   }
+  setInterval(cleanupExpiredTokens, 60 * 60 * 1000); // Run every hour
 
+  // Endpoint to create a download token (Keep)
+  app.post("/api/audio/create-download-token", isAuthenticated, isAdmin, (req: Request, res: Response) => {
+    try {
+      const token = randomUUID(); // Use crypto.randomUUID for better randomness
+      const expires = new Date();
+      expires.setMinutes(expires.getMinutes() + 10); // Token valid for 10 minutes
+      
+      downloadTokens.set(token, {
+        userId: req.user!.id,
+        expires,
+        used: false
+      });
+      
+      console.log(`Generated download token ${token} for user ${req.user!.id}, expires at ${expires.toISOString()}`);
+      res.json({ token });
+      
+    } catch (error) {
+      console.error("Error creating download token:", error);
+      res.status(500).json({ error: "Failed to create download token" });
+    }
+  });
+
+  // Token-based bulk download endpoint (Refactored to use real files)
+  app.get("/api/audio/download/:token", async (req: Request, res: Response) => {
+    const token = req.params.token;
+    console.log(`Bulk audio download request with token: ${token}`);
+
+    // 1. Verify Token
+    const tokenData = downloadTokens.get(token);
+    if (!tokenData) {
+      console.log("Token not found:", token);
+      return res.status(401).json({ error: "Invalid or expired download token (not found)" });
+    }
+    if (tokenData.expires < new Date()) {
+      console.log("Token expired:", token);
+      downloadTokens.delete(token); // Clean up expired token
+      return res.status(401).json({ error: "Download token has expired" });
+    }
+    if (tokenData.used) {
+        console.log("Token already used:", token);
+        return res.status(401).json({ error: "Download token has already been used" });
+    }
+
+    // Mark token as used immediately
+    tokenData.used = true;
+    downloadTokens.set(token, tokenData);
+
+    console.log(`Token ${token} validated for user ID: ${tokenData.userId}`);
+
+    try {
+        // 2. Prepare ZIP Archive
+        const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+        const zipFilename = `all_audio_export_${timestamp}.zip`;
+        const zipFilePath = path.join(exportsDir, zipFilename);
+        console.log(`Creating bulk audio ZIP archive at: ${zipFilePath}`);
+
+        const output = fs.createWriteStream(zipFilePath);
+        const archive = archiver('zip', { zlib: { level: 9 } });
+
+        let filesAdded = 0;
+        let segmentsAdded = 0;
+
+        // Setup archive event listeners
+        output.on('close', () => {
+            console.log(`ZIP archive created successfully. Size: ${archive.pointer()} bytes. Contains ${filesAdded} original files and ${segmentsAdded} segments.`);
+            res.download(zipFilePath, zipFilename, (downloadErr) => {
+                if (downloadErr) {
+                    console.error('Error sending ZIP file:', downloadErr);
+                } else {
+                    console.log(`Successfully sent ZIP file: ${zipFilename}`);
+                }
+                // Cleanup ZIP file after delay
+                setTimeout(() => {
+                    fs.unlink(zipFilePath, (unlinkErr) => {
+                        if (unlinkErr) console.error(`Error removing temp ZIP file ${zipFilePath}:`, unlinkErr);
+                        else console.log(`Cleaned up temp ZIP file: ${zipFilePath}`);
+                    });
+                }, 15000);
+            });
+        });
+
+        archive.on('warning', (warnErr) => console.warn('ZIP archive warning:', warnErr));
+        archive.on('error', (archiveErr) => {
+            console.error('ZIP archive creation error:', archiveErr);
+            if (!res.headersSent) {
+                res.status(500).json({ error: 'Failed to create ZIP archive' });
+            }
+             output.end();
+             fs.unlink(zipFilePath, (unlinkErr) => {
+                 if (unlinkErr) console.error(`Error removing partial ZIP file ${zipFilePath} after error:`, unlinkErr);
+             });
+        });
+
+        archive.pipe(output);
+
+        // 3. Fetch and Add REAL Files/Segments
+        console.log("Fetching all audio files and segments from storage...");
+        
+        // Use getAudioFiles(null, true) to fetch all files, assuming it returns AudioFile[]
+        // Explicitly type 'file' as 'AudioFile' (assuming AudioFile type is defined/imported)
+        const audioFiles: AudioFile[] = await storage.getAudioFiles(null, true); 
+        console.log(`Found ${audioFiles.length} total audio file records.`);
+
+        // Add original uploaded files
+        for (const file of audioFiles) { // Type 'file' is now AudioFile
+            if (file.originalPath) {
+                 const absolutePath = path.resolve(file.originalPath);
+                 if (fs.existsSync(absolutePath)) {
+                     archive.file(absolutePath, { name: `original_uploads/${path.basename(absolutePath)}` });
+                     filesAdded++;
+                 } else {
+                      console.warn(`Original file path not found on disk: ${absolutePath} for file ID ${file.id}`);
+                 }
+            }
+        }
+
+        // Fetch and add segment files using the correct type AudioSegment
+        const allSegments: AudioSegment[] = await storage.getAllSegments(); // Use AudioSegment
+        console.log(`Found ${allSegments.length} total segment records.`);
+        for (const segment of allSegments) { // Use AudioSegment for loop variable
+             if (segment.segmentPath) {
+                 const absolutePath = path.resolve(segment.segmentPath);
+                 try {
+                     await fsPromises.access(absolutePath, fs.constants.R_OK);
+                     const parentDir = `file_${segment.audioFileId}_segments`;
+                     archive.file(absolutePath, { name: `${parentDir}/${path.basename(absolutePath)}` });
+                     segmentsAdded++;
+                 } catch (accessErr) {
+                     console.warn(`Segment file path not found or not readable: ${absolutePath} for segment ID ${segment.id}`);
+                 }
+             }
+        }
+
+        console.log(`Adding ${filesAdded} original files and ${segmentsAdded} segments to the archive.`);
+
+        // Add README
+        const readmeContent = `Bulk Audio Export\nGenerated: ${new Date().toISOString()}\nToken: ${token}\nUser ID: ${tokenData.userId}\n\nContains:\n- ${filesAdded} original uploaded audio files\n- ${segmentsAdded} processed segment files\n`;
+        archive.append(readmeContent, { name: 'README.txt' });
+
+        // Finalize archive
+        console.log("Finalizing ZIP archive...");
+        await archive.finalize();
+
+    } catch (error: any) {
+        console.error(`Error during bulk audio download process for token ${token}:`, error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: error.message || 'Internal server error during bulk download' });
+        }
+    }
+  });
+  
+  // --- Cleanup Endpoint (Refactored) ---
+  app.post("/api/audio/cleanup", isAuthenticated, isAdmin, async (req, res) => {
+      console.log("Cleanup request received from user:", req.user!.id);
+      try {
+          const allFilesResult: any[] = await storage.getAudioFiles(null, true);
+          const processedFiles = allFilesResult.filter(fileData => fileData && (fileData as AudioFile).status === 'processed') as AudioFile[];
+          console.log(`Found ${processedFiles.length} processed files to potentially clean.`);
+
+          let filesRemovedCount = 0;
+          const errors: Array<{ fileId: number; error: string }> = [];
+
+          for (const file of processedFiles) { 
+              try {
+                   let deletedOriginal = false;
+                   let deletedProcessed = false;
+
+                  // Delete original file if exists
+                  if (file.originalPath) {
+                       const absPath = path.resolve(file.originalPath);
+                       try {
+                            await fsPromises.unlink(absPath);
+                            console.log(`Deleted original file: ${file.originalPath}`);
+                            deletedOriginal = true;
+                       } catch (e: any) { if (e.code !== 'ENOENT') throw e; } 
+                  }
+                  // Delete processed file dir if exists
+                  if (file.processedPath) {
+                       const absPath = path.resolve(file.processedPath);
+                       try {
+                            await fsPromises.rm(absPath, { recursive: true, force: true });
+                            console.log(`Deleted processed dir: ${file.processedPath}`);
+                            deletedProcessed = true;
+                       } catch (e: any) { if (e.code !== 'ENOENT') throw e; } 
+                  }
+
+                  // Delete associated segment files physically
+                  // Use correct method name and type
+                  const segments: AudioSegment[] = await storage.getAudioSegmentsByFileId(file.id); // Correct method and type
+                  for (const segment of segments) { // Use AudioSegment for loop variable
+                      if (segment.segmentPath) {
+                          const absPath = path.resolve(segment.segmentPath);
+                          try {
+                               await fsPromises.unlink(absPath);
+                               console.log(`Deleted segment file: ${segment.segmentPath}`);
+                          } catch (e: any) { 
+                              if (e.code !== 'ENOENT') { 
+                                  console.error(`Error deleting segment file ${absPath}:`, e);
+                              }
+                          }
+                      }
+                  }
+                  
+                  if (deletedOriginal || deletedProcessed) {
+                       filesRemovedCount++;
+                  }
+
+              } catch (err: any) {
+                  console.error(`Error cleaning up file ID ${file.id}:`, err);
+                  errors.push({ fileId: file.id, error: err.message });
+              }
+          } // end for loop
+
+          console.log(`Cleanup finished. Removed files/dirs related to ${filesRemovedCount} entries.`);
+          res.json({
+              message: `Cleanup complete. Processed ${processedFiles.length} entries.`,
+              filesRemoved: filesRemovedCount,
+              errors: errors,
+          });
+
+      } catch (error: any) {
+          console.error("Error during cleanup:", error);
+          res.status(500).json({ error: error.message || "Internal server error during cleanup" });
+      }
+  });
+
+  // Return the server instance
   try {
-    // Return the HTTP server
     return createServer(app);
   } catch (error) {
     console.error("Error creating HTTP server:", error);
