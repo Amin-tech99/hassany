@@ -18,25 +18,8 @@ export function CleanupStorage() {
   const queryClient = useQueryClient();
   const [showConfirm, setShowConfirm] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
-  const downloadFrameRef = useRef<HTMLIFrameElement>(null);
-  const formRef = useRef<HTMLFormElement>(null);
+  const [isGeneratingToken, setIsGeneratingToken] = useState(false);
   const [showBackupOption, setShowBackupOption] = useState(false);
-  
-  // This ensures authentication is maintained for downloads
-  useEffect(() => {
-    // Create a dummy request to keep session alive
-    const keepSessionAlive = async () => {
-      try {
-        await apiRequest("GET", "/api/user/current");
-        console.log("Session refreshed successfully");
-      } catch (error) {
-        console.error("Error refreshing session:", error);
-      }
-    };
-    
-    // Call once when component mounts
-    keepSessionAlive();
-  }, []);
   
   const cleanupMutation = useMutation({
     mutationFn: async () => {
@@ -82,97 +65,85 @@ export function CleanupStorage() {
       
       toast({
         title: "Preparing Download",
-        description: "Creating archive of all audio files. This may take a moment...",
+        description: "Starting token-based download...",
       });
       
-      // Method 1: Use the iframe approach first
-      if (downloadFrameRef.current) {
-        console.log("Starting download via iframe...");
-        downloadFrameRef.current.src = "/api/audio/export-all";
-        
-        // Show backup option after a short delay
-        setTimeout(() => {
-          setIsDownloading(false);
-          setShowBackupOption(true);
-          
-          toast({
-            title: "Download Initiated",
-            description: "If the download didn't start automatically, please use one of the backup options below.",
-          });
-        }, 7000);
-      } else {
-        throw new Error("Download frame not available");
-      }
+      await handleTokenDownload();
       
     } catch (error) {
       setIsDownloading(false);
+      setShowBackupOption(true);
+      
       toast({
         title: "Download Failed",
         description: error instanceof Error ? error.message : "Unknown error occurred",
         variant: "destructive",
       });
       
-      // Show backup option on error
-      setShowBackupOption(true);
-      
-      // Log additional debug information
-      console.error("Download error details:", {
-        error,
-        cookiesPresent: document.cookie.length > 0,
-        iframeRef: downloadFrameRef.current ? "Available" : "Not available"
-      });
+      console.error("Download error details:", error);
     }
   };
   
-  const handleFormDownload = () => {
-    // Submit the form to trigger download with authentication
-    if (formRef.current) {
-      formRef.current.submit();
-    }
-  };
-  
-  const handleDirectDownload = async () => {
+  const handleTokenDownload = async () => {
     try {
-      setIsDownloading(true);
+      setIsGeneratingToken(true);
       
-      toast({
-        title: "Preparing Direct Download",
-        description: "Requesting audio files directly...",
-      });
+      // Request a download token
+      const response = await apiRequest("POST", "/api/audio/create-download-token");
+      const data = await response.json();
       
-      // Use the authenticated apiRequest function to fetch the ZIP file as a blob
-      const response = await apiRequest("GET", "/api/audio/export-all");
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || "Failed to download audio files");
+      if (!data.token) {
+        throw new Error("No download token received from server");
       }
       
-      // Create a blob URL from the response and trigger download
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `audio-export-${new Date().toISOString().slice(0, 10)}.zip`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // Log the token for debugging
+      console.log("Download token received:", data.token.substring(0, 5) + '...');
       
+      // Open the download URL in a new window
+      const downloadUrl = `/api/audio/download/${data.token}`;
+      
+      // Open the download URL
+      window.open(downloadUrl, '_blank');
+      
+      // Show success message
       toast({
         title: "Download Started",
-        description: "Your audio files are being downloaded now."
+        description: "Your download should begin in a new tab. If not, try the backup options below."
       });
+      
+      // Show backup options after a short delay
+      setTimeout(() => {
+        setIsDownloading(false);
+        setShowBackupOption(true);
+      }, 3000);
+      
+    } catch (error) {
+      console.error("Token download error:", error);
+      throw error;
+    } finally {
+      setIsGeneratingToken(false);
+    }
+  };
+  
+  const handleRetryTokenDownload = async () => {
+    try {
+      setIsGeneratingToken(true);
+      
+      toast({
+        title: "Retrying Download",
+        description: "Generating a new download token...",
+      });
+      
+      await handleTokenDownload();
       
     } catch (error) {
       toast({
-        title: "Direct Download Failed",
-        description: error instanceof Error ? error.message : "Unknown error occurred",
+        title: "Retry Failed",
+        description: error instanceof Error ? error.message : "Failed to generate download token",
         variant: "destructive",
       });
-      
-      console.error("Direct download error:", error);
     } finally {
-      setIsDownloading(false);
+      setIsGeneratingToken(false);
     }
   };
   
@@ -213,75 +184,54 @@ export function CleanupStorage() {
             {showBackupOption && (
               <Alert className="bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-900 mt-4">
                 <ExternalLink className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <AlertTitle className="text-green-600 dark:text-green-400">Download Options</AlertTitle>
+                <AlertTitle className="text-green-600 dark:text-green-400">Download Help</AlertTitle>
                 <AlertDescription className="text-green-700 dark:text-green-300 space-y-4">
-                  <p>If the automatic download didn't start, try one of these alternative methods:</p>
+                  <p>
+                    If the download didn't start automatically, please check your browser's popup settings and try again:
+                  </p>
                   
-                  <div className="flex space-x-2 flex-wrap">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleFormDownload}
-                      className="mt-2 bg-green-100 hover:bg-green-200 dark:bg-green-800 dark:hover:bg-green-700 border-green-300 dark:border-green-700"
-                    >
-                      <Download className="mr-2 h-4 w-4" />
-                      Form Method
-                    </Button>
-                    
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      onClick={handleDirectDownload}
-                      disabled={isDownloading}
-                      className="mt-2 bg-blue-100 hover:bg-blue-200 dark:bg-blue-800 dark:hover:bg-blue-700 border-blue-300 dark:border-blue-700"
-                    >
-                      {isDownloading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Downloading...
-                        </>
-                      ) : (
-                        <>
-                          <ExternalLink className="mr-2 h-4 w-4" />
-                          Direct Method
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleRetryTokenDownload}
+                    disabled={isGeneratingToken}
+                    className="mt-2 bg-green-100 hover:bg-green-200 dark:bg-green-800 dark:hover:bg-green-700 border-green-300 dark:border-green-700"
+                  >
+                    {isGeneratingToken ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Generating Token...
+                      </>
+                    ) : (
+                      <>
+                        <Download className="mr-2 h-4 w-4" />
+                        Retry Download
+                      </>
+                    )}
+                  </Button>
+                  
+                  <p className="text-xs mt-2">
+                    Note: Downloads may be disabled by your browser's popup blocker. 
+                    If you see a popup notification, please allow the popup and try again.
+                  </p>
                 </AlertDescription>
               </Alert>
             )}
           </div>
         )}
-        
-        {/* Hidden iframe for downloads */}
-        <iframe 
-          ref={downloadFrameRef} 
-          style={{ display: 'none' }} 
-          title="download-frame"
-        />
-        
-        {/* Hidden form for authenticated download */}
-        <form 
-          ref={formRef}
-          method="POST"
-          action="/api/audio/download-form"
-          target="_blank"
-          style={{ display: 'none' }}
-        ></form>
       </CardContent>
       <CardFooter className="flex justify-end space-x-2 bg-gray-50 dark:bg-gray-800/50 p-4 rounded-b-lg">
         {!showConfirm && (
           <Button
             variant="outline"
             onClick={handleDownloadAll}
-            disabled={isDownloading || cleanupMutation.isPending}
+            disabled={isDownloading || isGeneratingToken || cleanupMutation.isPending}
             className="flex items-center"
           >
-            {isDownloading ? (
+            {isDownloading || isGeneratingToken ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Preparing...
+                {isGeneratingToken ? "Generating Token..." : "Preparing..."}
               </>
             ) : (
               <>
@@ -305,7 +255,7 @@ export function CleanupStorage() {
         <Button
           variant={showConfirm ? "destructive" : "default"}
           onClick={handleCleanup}
-          disabled={cleanupMutation.isPending || isDownloading}
+          disabled={cleanupMutation.isPending || isDownloading || isGeneratingToken}
           className="flex items-center"
         >
           {cleanupMutation.isPending ? (
