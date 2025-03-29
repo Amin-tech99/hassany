@@ -88,40 +88,52 @@ export function CleanupStorage() {
     try {
       setIsGeneratingToken(true);
       
-      // Request a download token
-      const response = await apiRequest("POST", "/api/audio/create-download-token");
-      const data = await response.json();
-      
-      if (!data.token) {
-        throw new Error("No download token received from server");
-      }
-      
-      // Log the token for debugging
-      console.log("Download token received:", data.token.substring(0, 5) + '...');
-      
-      // Open the download URL in a new window
-      const downloadUrl = `/api/audio/download/${data.token}`;
-      
-      // Open the download URL
-      window.open(downloadUrl, '_blank');
-      
-      // Show success message
-      toast({
-        title: "Download Started",
-        description: "Your download should begin in a new tab. If not, try the backup options below."
+      // Use fetch directly for debugging
+      const response = await fetch("/api/audio/create-download-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        credentials: "include" // Include cookies
       });
       
-      // Show backup options after a short delay
-      setTimeout(() => {
-        setIsDownloading(false);
-        setShowBackupOption(true);
-      }, 3000);
+      // Log raw response for debugging
+      const responseText = await response.text();
+      console.log("Raw response:", responseText);
+      
+      // Try to parse as JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("Failed to parse response as JSON:", parseError);
+        throw new Error("Server returned invalid response: " + responseText.substring(0, 100));
+      }
+      
+      if (!data.token) {
+        throw new Error("No token in response: " + JSON.stringify(data));
+      }
+      
+      // Log token and open download URL
+      console.log("Token received:", data.token);
+      window.open(`/api/audio/download/${data.token}`, '_blank');
+      
+      toast({
+        title: "Download Started",
+        description: "Check your browser for the download"
+      });
       
     } catch (error) {
-      console.error("Token download error:", error);
-      throw error;
+      console.error("Download error:", error);
+      toast({
+        title: "Download Failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive"
+      });
     } finally {
       setIsGeneratingToken(false);
+      setIsDownloading(false);
+      setShowBackupOption(true);
     }
   };
   
