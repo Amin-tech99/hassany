@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAudioProcessor } from "@/hooks/use-audio-processor";
@@ -150,9 +150,32 @@ export function ProcessingQueue() {
                                   "Cancel"
                                 )}
                               </Button>
+                            ) : file.status.toLowerCase() === "processed" ? (
+                              <div className="flex justify-end space-x-2">
+                                <Button
+                                  asChild
+                                  variant="outline"
+                                  size="sm"
+                                >
+                                  <a href={`/api/audio/${file.id}/segments/download`}
+                                     aria-label={`Download segments for ${file.filename}`}
+                                     title="Download Segments">
+                                    <Download className="h-4 w-4" />
+                                  </a>
+                                </Button>
+                                <Button
+                                  variant="link"
+                                  size="sm"
+                                  className="text-primary-600 hover:text-primary-900 p-0 h-auto"
+                                  onClick={() => handleViewDetails(file.id)}
+                                >
+                                  View Details
+                                </Button>
+                              </div>
                             ) : (
                               <Button
                                 variant="link"
+                                size="sm"
                                 className="text-primary-600 hover:text-primary-900"
                                 onClick={() => handleViewDetails(file.id)}
                               >
