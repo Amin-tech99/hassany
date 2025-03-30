@@ -113,7 +113,7 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
       className="absolute -right-4 top-20 hidden md:flex h-10 w-10 items-center justify-center rounded-full bg-white text-primary-700 shadow-lg hover:bg-gray-100 focus:outline-none transition-all duration-300 hover:scale-110 border border-gray-200"
       aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
     >
-      {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+      {collapsed ? <ChevronRight size={18} className="text-black" /> : <ChevronLeft size={18} className="text-black" />}
     </button>
   );
 
