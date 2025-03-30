@@ -567,16 +567,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Format the data according to the selected format
       let exportData;
       if (format === "whisper") {
-        exportData = transcriptions.map(t => ({
-          audio_filepath: t.audioPath,
-          text: t.text,
-          ...(includeSpeaker && t.speaker ? { speaker: t.speaker } : {}),
-          ...(includeTimestamps ? { 
-            start: t.startTime,
-            end: t.endTime 
-          } : {}),
-          ...(includeConfidence && t.confidence ? { confidence: t.confidence } : {})
-        }));
+        exportData = transcriptions.map(t => {
+          // Extract just the filename from the full path
+          const filename = path.basename(t.audioPath);
+          
+          return {
+            audio_file: filename, // Use just filename instead of full path
+            text: t.text,
+            ...(includeSpeaker && t.speaker ? { speaker: t.speaker } : {}),
+            ...(includeTimestamps ? { 
+              start: t.startTime,
+              end: t.endTime 
+            } : {}),
+            ...(includeConfidence && t.confidence ? { confidence: t.confidence } : {})
+          };
+        });
         console.log(`Formatted ${exportData.length} transcriptions for Whisper export`);
       } else if (format === "standard") {
         exportData = transcriptions.map(t => ({
