@@ -259,6 +259,16 @@ export function TranscriptionModal({
               />
             </div>
             
+            {!isReviewer && segmentData?.transcription?.status === "rejected" && segmentData?.transcription?.reviewNotes && (
+              <div className="mt-4 bg-red-50 p-4 rounded-md border border-red-200">
+                <Label className="text-red-800 font-bold">Revision Required</Label>
+                <div className="mt-2 text-sm text-red-700 whitespace-pre-wrap">
+                  <p className="font-semibold mb-1">Reviewer's feedback:</p>
+                  {segmentData.transcription.reviewNotes}
+                </div>
+              </div>
+            )}
+            
             {/* Quality Review (for reviewers only) */}
             {isReviewer && (
               <div className="mt-4 border-t pt-4">
