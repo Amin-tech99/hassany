@@ -171,14 +171,14 @@ export default function AuthPage() {
           animate="visible"
         >
           <motion.h1 
-            className="text-4xl font-bold mb-8 text-white drop-shadow-md"
+            className="text-4xl font-bold mb-8 text-white drop-shadow-md bg-black/40 px-4 py-2 rounded-lg inline-block"
             variants={itemVariants}
           >
             Collaborative Speech-to-Text Transcription
           </motion.h1>
           
           <motion.p 
-            className="text-lg mb-6 text-white drop-shadow-md"
+            className="text-lg mb-6 text-white drop-shadow-md bg-black/30 p-3 rounded-md"
             variants={itemVariants}
           >
             A platform designed for teams to efficiently collect, process, and transcribe

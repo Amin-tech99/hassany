@@ -184,12 +184,12 @@ export function AuthForm() {
               <motion.div variants={inputVariants} custom={2} initial="hidden" animate="visible">
                 <Button 
                   type="submit" 
-                  className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-md transition-all shadow-md hover:shadow-lg" 
+                  className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-md transition-all shadow-lg hover:shadow-xl border-2 border-white text-lg font-bold" 
                   disabled={loginMutation.isPending}
                 >
                   {loginMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Signing in...
                     </>
                   ) : (
@@ -197,6 +197,17 @@ export function AuthForm() {
                   )}
                 </Button>
               </motion.div>
+
+              {/* Login help text */}
+              <motion.p 
+                className="text-xs text-center text-gray-500 mt-4"
+                variants={inputVariants}
+                custom={3}
+                initial="hidden"
+                animate="visible"
+              >
+                Click the button above to sign in
+              </motion.p>
             </form>
           </Form>
         </motion.div>
@@ -311,12 +322,12 @@ export function AuthForm() {
               <motion.div variants={inputVariants} custom={4} initial="hidden" animate="visible">
                 <Button 
                   type="submit" 
-                  className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-md transition-all shadow-md hover:shadow-lg" 
+                  className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-md transition-all shadow-lg hover:shadow-xl border-2 border-white text-lg font-bold" 
                   disabled={registerMutation.isPending}
                 >
                   {registerMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                       Creating account...
                     </>
                   ) : (
@@ -324,6 +335,17 @@ export function AuthForm() {
                   )}
                 </Button>
               </motion.div>
+
+              {/* Register help text */}
+              <motion.p 
+                className="text-xs text-center text-gray-500 mt-4"
+                variants={inputVariants}
+                custom={5}
+                initial="hidden"
+                animate="visible"
+              >
+                Click the button above to create your account
+              </motion.p>
             </form>
           </Form>
         </motion.div>
