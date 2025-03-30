@@ -315,7 +315,12 @@ export function TranscriptionModal({
               onClick={handleSave}
               disabled={saveTranscriptionMutation.isPending}
               size="lg"
-              className="w-full max-w-md bg-green-600 hover:bg-green-700 text-white font-bold py-3"
+              className={cn(
+                "w-full max-w-md font-bold py-3 text-white border-4",
+                approvalStatus === "approve" 
+                  ? "bg-green-600 hover:bg-green-700 border-green-300" 
+                  : "bg-orange-600 hover:bg-orange-700 border-orange-300"
+              )}
             >
               {saveTranscriptionMutation.isPending ? (
                 <>
@@ -325,9 +330,9 @@ export function TranscriptionModal({
               ) : (
                 <>
                   {approvalStatus === "approve" ? (
-                    <>✓ Approve and Complete</>
+                    <><span className="text-xl">✓</span> Approve and Complete</>
                   ) : (
-                    <>↺ Send Back for Revision</>
+                    <><span className="text-xl">↺</span> <span className="underline">Send Back for Revision</span></>
                   )}
                 </>
               )}
