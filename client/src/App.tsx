@@ -22,8 +22,6 @@ function Router() {
         <Route path="/transcriptions" element={<TranscriptionsPage />} />
         <Route path="/transcriptions/:id" element={<TranscriptionsPage />} />
         <Route path="/audio-processing" element={<AudioProcessingPage />} />
-      </Route>
-      <Route element={<ProtectedRoute adminOnly={true}><MainLayout /></ProtectedRoute>}>
         <Route path="/team" element={<TeamManagementPage />} />
         <Route path="/export" element={<ExportDataPage />} />
       </Route>
