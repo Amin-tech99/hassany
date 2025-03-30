@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { PlayIcon, PauseIcon } from "lucide-react";
+import { PlayIcon, PauseIcon, Volume2, VolumeX } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
 
 interface AudioPlayerProps {
   audioUrl: string;
@@ -17,6 +18,8 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [volume, setVolume] = useState(1);
+  const [muted, setMuted] = useState(false);
   
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const progressInterval = useRef<NodeJS.Timeout | null>(null);
@@ -126,6 +129,13 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
     };
   }, [isPlaying]);
 
+  // Handle volume changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.volume = muted ? 0 : volume;
+    }
+  }, [volume, muted]);
+
   // Toggle play/pause
   const togglePlayback = () => {
     if (!audioRef.current) {
@@ -178,6 +188,19 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
     setProgress(clickPercentage * 100);
   };
 
+  // Toggle mute
+  const toggleMute = () => {
+    setMuted(!muted);
+  };
+
+  // Handle volume slider change
+  const handleVolumeChange = (value: number[]) => {
+    setVolume(value[0]);
+    if (muted && value[0] > 0) {
+      setMuted(false);
+    }
+  };
+
   // Speed options
   const speedOptions = [
     { value: "0.5", label: "0.5x" },
@@ -189,72 +212,112 @@ export function AudioPlayer({ audioUrl, onEnded }: AudioPlayerProps) {
   ];
 
   return (
-    <div className="bg-gray-100 rounded-lg p-5 shadow-md border border-gray-200">
+    <div className="bg-gray-100 rounded-lg p-3 sm:p-5 shadow-md border border-gray-200 w-full">
       <div className="flex flex-col space-y-3">
-        <div className="flex items-center space-x-4">
-          {/* Play button with more prominent styling */}
+        <div className="flex items-center space-x-2 sm:space-x-4">
+          {/* Play button with more prominent styling and better touch target */}
           <Button
             size="default"
             variant="default"
-            className="min-w-[48px] h-12 w-12 rounded-full bg-primary hover:bg-primary/90 text-white shadow-md flex items-center justify-center"
+            className="min-w-[44px] h-10 sm:min-w-[48px] sm:h-12 w-10 sm:w-12 rounded-full bg-primary hover:bg-primary/90 text-white shadow-md flex items-center justify-center"
             onClick={togglePlayback}
             title={isPlaying ? "Pause" : "Play"}
+            aria-label={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? (
-              <PauseIcon className="h-6 w-6" />
+              <PauseIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             ) : (
-              <PlayIcon className="h-6 w-6" />
+              <PlayIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             )}
           </Button>
           
           <div className="flex-1 flex flex-col space-y-1">
             <div 
-              className="w-full bg-gray-200 rounded-full h-3 cursor-pointer shadow-inner"
+              className="w-full bg-gray-200 rounded-full h-2.5 sm:h-3 cursor-pointer shadow-inner"
               onClick={handleSeek}
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress}
             >
               <div 
-                className="bg-primary h-3 rounded-full transition-all" 
+                className="bg-primary h-2.5 sm:h-3 rounded-full transition-all" 
                 style={{ width: `${progress}%` }}
               ></div>
             </div>
             
-            <div className="flex justify-between">
-              <span className="text-sm font-medium text-gray-700">
+            <div className="flex justify-between text-xs sm:text-sm">
+              <span className="font-medium text-gray-700">
                 {formatTime(currentTime)}
               </span>
-              <span className="text-sm font-medium text-gray-700">
+              <span className="font-medium text-gray-700">
                 {formatTime(duration)}
               </span>
             </div>
           </div>
         </div>
         
-        <div className="flex items-center justify-end space-x-3 mt-1">
-          <span className="text-sm font-medium text-gray-700">Playback Speed:</span>
-          <Select
-            value={playbackSpeed}
-            onValueChange={setPlaybackSpeed}
-          >
-            <SelectTrigger className="w-[90px] h-9 bg-white">
-              <SelectValue placeholder="1x" />
-            </SelectTrigger>
-            <SelectContent>
-              {speedOptions.map(option => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center space-x-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0 rounded-full"
+              onClick={toggleMute}
+              title={muted ? "Unmute" : "Mute"}
+              aria-label={muted ? "Unmute" : "Mute"}
+            >
+              {muted ? (
+                <VolumeX className="h-4 w-4 text-gray-600" />
+              ) : (
+                <Volume2 className="h-4 w-4 text-gray-600" />
+              )}
+            </Button>
+            <div className="w-20 hidden sm:block">
+              <Slider
+                value={[muted ? 0 : volume]}
+                min={0}
+                max={1}
+                step={0.01}
+                onValueChange={handleVolumeChange}
+                aria-label="Volume"
+              />
+            </div>
+          </div>
+          
+          <div className="flex flex-wrap items-center space-x-2 sm:space-x-3">
+            <span className="text-xs sm:text-sm font-medium text-gray-700">Speed:</span>
+            <Select
+              value={playbackSpeed}
+              onValueChange={setPlaybackSpeed}
+            >
+              <SelectTrigger className="w-[70px] sm:w-[90px] h-8 sm:h-9 bg-white text-xs sm:text-sm">
+                <SelectValue placeholder="1x" />
+              </SelectTrigger>
+              <SelectContent>
+                {speedOptions.map(option => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
       
-      {/* Loading or error indicators */}
-      {audioRef.current === null && (
-        <div className={`mt-2 text-sm ${error ? "text-red-600 font-medium" : "text-gray-600"}`}>
-          {!token && "Authentication token not found. Please log in again."}
-          {token && loading && "Loading audio file..."}
-          {token && error && `Error: ${error}`}
+      {/* Error message display */}
+      {error && (
+        <div className="mt-2 text-sm text-red-600 bg-red-50 p-2 rounded-md">
+          Error: {error}
+        </div>
+      )}
+      
+      {/* Loading state */}
+      {loading && (
+        <div className="flex justify-center items-center mt-2">
+          <div className="h-5 w-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
+          <span className="ml-2 text-sm text-gray-600">Loading audio...</span>
         </div>
       )}
     </div>
