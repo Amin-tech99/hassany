@@ -94,11 +94,11 @@ export function MainLayout() {
     <div className="min-h-screen bg-slate-950">
       <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
       <main className={cn(
-        "min-h-screen transition-all duration-300",
-        "md:pl-64", // Default padding for expanded sidebar
-        sidebarCollapsed && "md:pl-16" // Reduced padding when sidebar is collapsed
+        "relative min-h-screen transition-all duration-300 bg-red-500/10",
+        "md:pl-64",
+        sidebarCollapsed && "md:pl-16"
       )}>
-        <div className="container mx-auto px-4 py-8">
+        <div className="container mx-auto px-4 py-8 bg-blue-500/10">
           <Outlet />
         </div>
       </main>
