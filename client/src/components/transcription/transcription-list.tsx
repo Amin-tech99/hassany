@@ -116,14 +116,8 @@ export function TranscriptionList() {
 
   return (
     <div>
-      <div className="sm:flex sm:items-center">
-        <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-white">Transcriptions</h1>
-          <p className="mt-2 text-sm text-white/70">
-            A list of all transcription tasks assigned to you and their current status.
-          </p>
-        </div>
-        <div className="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+      <div className="flex justify-end mb-4">
+        <div className="flex-none">
           <Select value={statusFilter} onValueChange={handleFilterChange}>
             <SelectTrigger className="w-[180px] bg-black/30 border-white/20 text-white">
               <SelectValue placeholder="Filter by status" />
@@ -138,7 +132,7 @@ export function TranscriptionList() {
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col">
+      <div className="flex flex-col">
         <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
             <div className="overflow-hidden shadow ring-1 ring-white/10 ring-opacity-5 md:rounded-lg">

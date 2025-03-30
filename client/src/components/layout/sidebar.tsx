@@ -218,7 +218,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
             onClick={handleLogout}
             icon={logoutMutation.isPending ? 
               <div className="h-5 w-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> : 
-              <LogOut className="h-5 w-5 text-white" />
+              <LogOut className="h-5 w-5 text-red-400" />
             }
             label="Logout"
             isAction={true}
