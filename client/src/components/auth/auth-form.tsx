@@ -22,11 +22,45 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, User, Lock, Mail, UserCheck } from "lucide-react";
+import { motion } from "framer-motion";
+import { cn } from "@/lib/utils";
 
 export function AuthForm() {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
   const { loginMutation, registerMutation } = useAuth();
+  
+  // Animation variants
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { 
+      opacity: 1, 
+      y: 0,
+      transition: { 
+        duration: 0.3, 
+        ease: "easeOut" 
+      }
+    },
+    exit: { 
+      opacity: 0, 
+      y: -20, 
+      transition: { 
+        duration: 0.2 
+      } 
+    }
+  };
+  
+  const inputVariants = {
+    hidden: { opacity: 0, x: -20 },
+    visible: (custom: number) => ({
+      opacity: 1,
+      x: 0,
+      transition: {
+        delay: custom * 0.1,
+        duration: 0.3
+      }
+    })
+  };
 
   // Login form
   const loginForm = useForm<z.infer<typeof loginSchema>>({
@@ -48,29 +82,13 @@ export function AuthForm() {
     },
   });
 
-  // Submit handlers with debugging
+  // Submit handlers
   const onLoginSubmit = (values: z.infer<typeof loginSchema>) => {
-    console.log("Login attempt with:", values);
-    loginMutation.mutate(values, {
-      onSuccess: (data) => {
-        console.log("Login successful, user data:", data);
-      },
-      onError: (error) => {
-        console.error("Login error:", error);
-      }
-    });
+    loginMutation.mutate(values);
   };
 
   const onRegisterSubmit = (values: z.infer<typeof registerSchema>) => {
-    console.log("Registration attempt with:", values);
-    registerMutation.mutate(values, {
-      onSuccess: (data) => {
-        console.log("Registration successful, user data:", data);
-      },
-      onError: (error) => {
-        console.error("Registration error:", error);
-      }
-    });
+    registerMutation.mutate(values);
   };
 
   return (
@@ -80,148 +98,213 @@ export function AuthForm() {
       onValueChange={(value) => setActiveTab(value as "login" | "register")}
       className="w-full max-w-md"
     >
-      <TabsList className="grid w-full grid-cols-2 mb-6">
-        <TabsTrigger value="login">Login</TabsTrigger>
-        <TabsTrigger value="register">Register</TabsTrigger>
+      <TabsList className="grid w-full grid-cols-2 mb-6 shadow-md">
+        <TabsTrigger 
+          value="login" 
+          className={cn(
+            "data-[state=active]:bg-primary-600 data-[state=active]:text-white py-3 font-medium",
+            "transition-all duration-300"
+          )}
+        >
+          Login
+        </TabsTrigger>
+        <TabsTrigger 
+          value="register" 
+          className={cn(
+            "data-[state=active]:bg-primary-600 data-[state=active]:text-white py-3 font-medium",
+            "transition-all duration-300"
+          )}
+        >
+          Register
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="login">
-        <Form {...loginForm}>
-          <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-6">
-            <FormField
-              control={loginForm.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter your username" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <motion.div
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          key="login-form"
+          className="bg-white p-6 rounded-lg shadow-lg"
+        >
+          <Form {...loginForm}>
+            <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-6">
+              <motion.div variants={inputVariants} custom={0} initial="hidden" animate="visible">
+                <FormField
+                  control={loginForm.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-slate-700">Username</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                          <Input placeholder="Enter your username" className="pl-10" {...field} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </motion.div>
 
-            <FormField
-              control={loginForm.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="Enter your password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <motion.div variants={inputVariants} custom={1} initial="hidden" animate="visible">
+                <FormField
+                  control={loginForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-slate-700">Password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                          <Input type="password" placeholder="Enter your password" className="pl-10" {...field} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </motion.div>
 
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={loginMutation.isPending}
-            >
-              {loginMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
-                </>
-              ) : (
-                "Sign in"
-              )}
-            </Button>
-          </form>
-        </Form>
+              <motion.div variants={inputVariants} custom={2} initial="hidden" animate="visible">
+                <Button 
+                  type="submit" 
+                  className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-md transition-all shadow-md hover:shadow-lg" 
+                  disabled={loginMutation.isPending}
+                >
+                  {loginMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    "Sign in"
+                  )}
+                </Button>
+              </motion.div>
+            </form>
+          </Form>
+        </motion.div>
       </TabsContent>
 
       <TabsContent value="register">
-        <Form {...registerForm}>
-          <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
-            <FormField
-              control={registerForm.control}
-              name="fullName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter your full name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <motion.div
+          variants={cardVariants}
+          initial="hidden"
+          animate="visible"
+          exit="exit"
+          key="register-form"
+          className="bg-white p-6 rounded-lg shadow-lg"
+        >
+          <Form {...registerForm}>
+            <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
+              <motion.div variants={inputVariants} custom={0} initial="hidden" animate="visible">
+                <FormField
+                  control={registerForm.control}
+                  name="fullName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-slate-700">Full Name</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <UserCheck className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                          <Input placeholder="Enter your full name" className="pl-10" {...field} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </motion.div>
 
-            <FormField
-              control={registerForm.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Choose a username" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <motion.div variants={inputVariants} custom={1} initial="hidden" animate="visible">
+                <FormField
+                  control={registerForm.control}
+                  name="username"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-slate-700">Username</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <User className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                          <Input placeholder="Choose a username" className="pl-10" {...field} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </motion.div>
 
-            <FormField
-              control={registerForm.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="Create a password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <motion.div variants={inputVariants} custom={2} initial="hidden" animate="visible">
+                <FormField
+                  control={registerForm.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-slate-700">Password</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-3 h-4 w-4 text-slate-400" />
+                          <Input type="password" placeholder="Create a password" className="pl-10" {...field} />
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </motion.div>
 
-            <FormField
-              control={registerForm.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select your role" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="transcriber">Transcriber</SelectItem>
-                      <SelectItem value="reviewer">Reviewer</SelectItem>
-                      <SelectItem value="collector">Audio Collector</SelectItem>
-                      <SelectItem value="admin">Team Leader</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+              <motion.div variants={inputVariants} custom={3} initial="hidden" animate="visible">
+                <FormField
+                  control={registerForm.control}
+                  name="role"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-slate-700">Role</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="border border-slate-200 focus:ring-2 focus:ring-primary-200">
+                            <SelectValue placeholder="Select your role" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent className="bg-white border border-slate-200 shadow-lg">
+                          <SelectItem value="transcriber">Transcriber</SelectItem>
+                          <SelectItem value="reviewer">Reviewer</SelectItem>
+                          <SelectItem value="collector">Audio Collector</SelectItem>
+                          <SelectItem value="admin">Team Leader</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </motion.div>
 
-            <Button 
-              type="submit" 
-              className="w-full" 
-              disabled={registerMutation.isPending}
-            >
-              {registerMutation.isPending ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating account...
-                </>
-              ) : (
-                "Create account"
-              )}
-            </Button>
-          </form>
-        </Form>
+              <motion.div variants={inputVariants} custom={4} initial="hidden" animate="visible">
+                <Button 
+                  type="submit" 
+                  className="w-full bg-primary-600 hover:bg-primary-700 text-white py-2 rounded-md transition-all shadow-md hover:shadow-lg" 
+                  disabled={registerMutation.isPending}
+                >
+                  {registerMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Creating account...
+                    </>
+                  ) : (
+                    "Create account"
+                  )}
+                </Button>
+              </motion.div>
+            </form>
+          </Form>
+        </motion.div>
       </TabsContent>
     </Tabs>
   );
