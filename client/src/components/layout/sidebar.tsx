@@ -1,5 +1,4 @@
-import { useAuth } from "@/hooks/use-auth";
-import { Link, useLocation } from "wouter";
+import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { 
   Home, 
@@ -11,10 +10,16 @@ import {
   X,
   Menu,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  LayoutGrid,
+  Headphones,
+  FileDown,
+  Settings,
+  Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 type NavItem = {
   href: string;
@@ -22,25 +27,29 @@ type NavItem = {
   icon: React.ReactNode;
   adminOnly?: boolean;
   color?: string;
+  active: boolean;
 };
 
 const navItems: NavItem[] = [
   {
     href: "/",
     label: "Dashboard",
-    icon: <Home className="h-5 w-5" />,
+    icon: <LayoutGrid className="h-5 w-5" />,
+    active: false,
     color: "text-blue-400"
   },
   {
     href: "/transcriptions",
     label: "Transcriptions",
     icon: <FileText className="h-5 w-5" />,
+    active: false,
     color: "text-green-400"
   },
   {
     href: "/audio-processing",
     label: "Audio Processing",
-    icon: <Mic className="h-5 w-5" />,
+    icon: <Headphones className="h-5 w-5" />,
+    active: false,
     color: "text-yellow-400",
     adminOnly: true
   },
@@ -48,16 +57,25 @@ const navItems: NavItem[] = [
     href: "/team",
     label: "Team Management",
     icon: <Users className="h-5 w-5" />,
+    active: false,
     adminOnly: true,
     color: "text-purple-400"
   },
   {
     href: "/export",
     label: "Export Data",
-    icon: <Download className="h-5 w-5" />,
+    icon: <FileDown className="h-5 w-5" />,
+    active: false,
     adminOnly: true,
     color: "text-pink-400"
-  }
+  },
+  {
+    href: "/cleanup",
+    label: "Cleanup Storage",
+    icon: <Trash2 className="h-5 w-5" />,
+    active: false,
+    adminOnly: true,
+  },
 ];
 
 interface SidebarProps {
@@ -66,7 +84,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
-  const [location] = useLocation();
+  const location = useLocation();
   const { user, logoutMutation } = useAuth();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
@@ -116,6 +134,11 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
       {collapsed ? <ChevronRight size={18} className="text-black" /> : <ChevronLeft size={18} className="text-black" />}
     </button>
   );
+
+  // Helper to check if a path is active
+  const isActive = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(`${path}/`);
+  };
 
   return (
     <>
@@ -170,19 +193,19 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
               // Skip admin-only items for non-admins
               if (item.adminOnly && !isAdmin) return null;
               
-              const isActive = location === item.href;
+              const active = isActive(item.href);
               
               return (
                 <Link 
                   key={item.href} 
-                  href={item.href}
+                  to={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
                 >
                   <a
                     className={cn(
                       "flex items-center py-3 text-sm font-medium rounded-lg transition-all duration-200",
                       collapsed ? "justify-center px-2" : "px-5",
-                      isActive 
+                      active 
                         ? "bg-primary-600/30 text-white font-bold shadow-md border-l-4 border-primary-500" 
                         : "text-slate-300 hover:bg-slate-700/60 hover:text-white hover:border-l-4 hover:border-primary-500/50"
                     )}
@@ -191,7 +214,7 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                     <span className={cn(
                       item.color || "text-white",
                       "transition-transform duration-200",
-                      isActive && "scale-110"
+                      active && "scale-110"
                     )}>
                       {item.icon}
                     </span>

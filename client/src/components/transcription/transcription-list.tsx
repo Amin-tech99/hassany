@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useLocation } from "wouter";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
@@ -22,12 +22,13 @@ interface TranscriptionTask {
 }
 
 export function TranscriptionList() {
-  const [location, setLocation] = useLocation();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const queryClient = useQueryClient();
 
   // Extract status from URL if present
-  const searchParams = new URLSearchParams(location.split("?")[1]);
+  const searchParams = new URLSearchParams(location.search);
   const urlStatus = searchParams.get("status");
 
   // Set filter from URL if not already set
@@ -46,9 +47,9 @@ export function TranscriptionList() {
   const handleFilterChange = (value: string) => {
     setStatusFilter(value);
     if (value === "all") {
-      setLocation("/transcriptions");
+      navigate("/transcriptions");
     } else {
-      setLocation(`/transcriptions?status=${value}`);
+      navigate(`/transcriptions?status=${value}`);
     }
     
     // Force refresh data when filter changes
@@ -110,7 +111,7 @@ export function TranscriptionList() {
   // Open transcription task
   const openTranscriptionTask = (taskId: number) => {
     // Directly navigate to the task with the segment ID
-    setLocation(`/transcriptions/${taskId}`);
+    navigate(`/transcriptions/${taskId}`);
   };
 
   return (

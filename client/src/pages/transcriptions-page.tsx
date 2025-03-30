@@ -2,11 +2,12 @@ import { useState, useEffect } from "react";
 import { MainLayout } from "@/components/layout/main-layout";
 import { TranscriptionList } from "@/components/transcription/transcription-list";
 import { TranscriptionModal } from "@/components/transcription/transcription-modal";
-import { useLocation, useParams, useRoute } from "wouter";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 
 export default function TranscriptionsPage() {
-  const [location, setLocation] = useLocation();
-  const [, params] = useRoute<{id: string}>("/transcriptions/:id");
+  const location = useLocation();
+  const params = useParams<{id: string}>();
+  const navigate = useNavigate();
   
   // Extract segment ID from URL if present (for direct linking to a transcription)
   const segmentIdFromUrl = params?.id ? parseInt(params.id, 10) : null;
@@ -28,7 +29,7 @@ export default function TranscriptionsPage() {
     setSelectedSegmentId(null);
     
     // Navigate back to main transcriptions page when modal is closed
-    setLocation('/transcriptions');
+    navigate('/transcriptions');
   };
   
   return (

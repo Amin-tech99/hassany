@@ -1,7 +1,10 @@
-import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
-import { Loader2, CheckCircle2, Clock } from "lucide-react";
+import { Headphones, FileText, User, Clock } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/hooks/use-auth";
 
 interface DashboardCardProps {
   title: string;
@@ -39,7 +42,7 @@ function DashboardCard({
       </CardContent>
       <CardFooter className="bg-gray-50 px-6 py-4">
         <div className="text-sm">
-          <Link href={linkHref}>
+          <Link to={linkHref}>
             <a className="font-medium text-primary-600 hover:text-primary-500">
               {linkText}
               <span className="sr-only"> {title}</span>

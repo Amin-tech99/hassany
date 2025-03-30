@@ -1,7 +1,11 @@
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
+import { Link } from "react-router-dom";
+import { ExternalLink, File, FileText, Headphones, MoreHorizontal, Loader2 } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/use-auth";
 import { format, formatDistanceToNow } from "date-fns";
-import { Loader2 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 
 type RecentActivity = {
@@ -120,7 +124,7 @@ export function RecentActivities() {
                   {getTimeAgo(activity.updatedAt)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <Link href={getActionLink(activity)}>
+                  <Link to={getActionLink(activity)}>
                     <a className="text-primary-600 hover:text-primary-900">
                       {getActionText(activity)}
                     </a>

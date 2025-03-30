@@ -1,6 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
+import { Navigate } from "react-router-dom";
 import { AuthForm } from "@/components/auth/auth-form";
-import { Redirect } from "wouter";
 import { useEffect } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { motion } from "framer-motion";
@@ -18,10 +18,8 @@ export default function AuthPage() {
     queryClient.invalidateQueries({ queryKey: ["/api/user"] });
   }, []);
   
-  // Redirect to dashboard if already logged in
   if (user && !isLoading) {
-    console.log("User is authenticated, redirecting to dashboard");
-    return <Redirect to="/" />;
+    return <Navigate to="/" replace />;
   }
 
   // Animation variants
@@ -283,7 +281,7 @@ export default function AuthPage() {
               <div>
                 <h3 className="font-semibold text-lg mb-1 text-white">Streamlined Workflow</h3>
                 <p className="text-white">Upload, segment, transcribe, and review audio in one seamless process</p>
-              </div>
+            </div>
               <motion.div 
                 className="ml-2 w-2 h-2 bg-white rounded-full opacity-60"
                 animate={pulseAnimation}
@@ -301,7 +299,7 @@ export default function AuthPage() {
               <div>
                 <h3 className="font-semibold text-lg mb-1 text-white">Quality Control</h3>
                 <p className="text-white">Multi-stage review process ensures high-quality transcriptions</p>
-              </div>
+            </div>
               <motion.div 
                 className="ml-2 w-2 h-2 bg-white rounded-full opacity-60"
                 animate={pulseAnimation}
@@ -319,7 +317,7 @@ export default function AuthPage() {
               <div>
                 <h3 className="font-semibold text-lg mb-1 text-white">ML-Ready Export</h3>
                 <p className="text-white">Export data in Whisper-compatible format for AI model training</p>
-              </div>
+            </div>
               <motion.div 
                 className="ml-2 w-2 h-2 bg-white rounded-full opacity-60"
                 animate={pulseAnimation}

@@ -780,7 +780,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const fileId = parseInt(req.params.id);
       const audioFile = await storage.getAudioFileById(fileId);
-      
+
       if (!audioFile) {
         return res.status(404).json({ message: "Audio file not found" });
       }
@@ -788,8 +788,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check if user has access to this file
       if (audioFile.uploadedBy !== req.user!.id && req.user!.role !== "admin") {
         return res.status(403).json({ message: "You don't have access to this file" });
-      }
-      
+        }
+        
       // Get all segments for this audio file
       const segments = await storage.getAudioSegments(fileId);
       
@@ -821,23 +821,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
         console.log(`ZIP file created at ${zipFilePath}, size: ${archive.pointer()} bytes`);
         
         // Send zip file as download
-        res.download(zipFilePath, zipFilename, (err) => {
-          if (err) {
+          res.download(zipFilePath, zipFilename, (err) => {
+            if (err) {
             console.error("Download error:", err);
-            if (!res.headersSent) {
+              if (!res.headersSent) {
               res.status(500).json({ message: "Error sending ZIP file" });
+              }
             }
-          }
           
           // Clean up the zip file after a delay
-          setTimeout(() => {
-            try {
+            setTimeout(() => {
+              try {
               fs.unlink(zipFilePath, () => {});
             } catch (e) {
               console.error("Error removing temp zip file:", e);
-            }
+              }
           }, 5000);
-        });
+          });
       });
       
       // Pipe archive data to file
@@ -852,10 +852,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
             console.log(`Adding segment ${segment.id} to ZIP from ${segment.segmentPath}`);
             archive.file(segment.segmentPath, { name: `Segment_${segment.id}${path.extname(segment.segmentPath)}` });
             addedFiles++;
-          } else {
+            } else {
             // If file doesn't exist, log the missing file
             console.error(`Segment file not found: ${segment.segmentPath}`);
-            
+          
             // Create a simple dummy file instead
             const dummyContent = `This is a placeholder for audio segment ${segment.id}`;
             archive.append(dummyContent, { name: `Segment_${segment.id}.txt` });
