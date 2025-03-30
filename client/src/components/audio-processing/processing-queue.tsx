@@ -55,18 +55,18 @@ export function ProcessingQueue() {
   const getStatusBadge = (status: string, progress?: number) => {
     switch (status.toLowerCase()) {
       case "processed":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Processed</Badge>;
+        return <Badge className="bg-green-600 text-white hover:bg-green-700">Processed</Badge>;
       case "processing":
         return (
           <div className="flex items-center">
-            <Badge className="mr-2 bg-blue-100 text-blue-800 hover:bg-blue-100">Processing</Badge>
-            {progress !== undefined && <span className="text-xs text-gray-500">{progress}%</span>}
+            <Badge className="mr-2 bg-blue-600 text-white hover:bg-blue-700">Processing</Badge>
+            {progress !== undefined && <span className="text-xs text-white/70">{progress}%</span>}
           </div>
         );
       case "error":
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Error</Badge>;
+        return <Badge className="bg-red-600 text-white hover:bg-red-700">Error</Badge>;
       case "uploading":
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Uploading</Badge>;
+        return <Badge className="bg-yellow-600 text-white hover:bg-yellow-700">Uploading</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }

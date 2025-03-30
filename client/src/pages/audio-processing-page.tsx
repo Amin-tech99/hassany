@@ -208,27 +208,35 @@ export default function AudioProcessingPage() {
                   <CardContent>
                     <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
                       <div>
-                        <dt className="text-sm font-medium text-gray-500">Filename</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{fileDetails.filename}</dd>
+                        <dt className="text-sm font-medium text-white/60">Filename</dt>
+                        <dd className="mt-1 text-sm text-white">
+                          {fileDetails.filename}
+                        </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-gray-500">Upload Date</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{formatDate(fileDetails.uploadedAt)}</dd>
+                        <dt className="text-sm font-medium text-white/60">Upload Date</dt>
+                        <dd className="mt-1 text-sm text-white">
+                          {formatDate(fileDetails.uploadedAt)}
+                        </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-gray-500">Size</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{formatFileSize(fileDetails.size)}</dd>
+                        <dt className="text-sm font-medium text-white/60">Size</dt>
+                        <dd className="mt-1 text-sm text-white">
+                          {formatFileSize(fileDetails.size)}
+                        </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-gray-500">Status</dt>
+                        <dt className="text-sm font-medium text-white/60">Status</dt>
                         <dd className="mt-1">{getStatusBadge(fileDetails.status, fileDetails.processingProgress)}</dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-gray-500">Segments</dt>
-                        <dd className="mt-1 text-sm text-gray-900">{fileDetails.segments || "--"}</dd>
+                        <dt className="text-sm font-medium text-white/60">Segments</dt>
+                        <dd className="mt-1 text-sm text-white">
+                          {fileDetails.segments || "--"}
+                        </dd>
                       </div>
                       <div>
-                        <dt className="text-sm font-medium text-gray-500">Actions</dt>
+                        <dt className="text-sm font-medium text-white/60">Actions</dt>
                         <dd className="mt-1">
                           {fileDetails.status.toLowerCase() === "processed" && (
                             <Button
@@ -259,42 +267,42 @@ export default function AudioProcessingPage() {
                     </CardHeader>
                     <CardContent>
                       <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-300">
-                          <thead className="bg-gray-50">
+                        <table className="min-w-full divide-y divide-gray-700">
+                          <thead className="bg-black/40">
                             <tr>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                 Segment #
                               </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                 Start Time
                               </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                 End Time
                               </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                 Duration
                               </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                                 Status
                               </th>
                             </tr>
                           </thead>
-                          <tbody className="bg-white divide-y divide-gray-200">
+                          <tbody className="bg-black/30 divide-y divide-gray-700">
                             {fileDetails.segmentsList.map((segment, index) => (
                               <tr key={segment.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
                                   {index + 1}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
                                   {formatTime(segment.startTime)}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
                                   {formatTime(segment.endTime)}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
                                   {formatTime(segment.duration)}
                                 </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
                                   {getStatusBadge(segment.status)}
                                 </td>
                               </tr>
