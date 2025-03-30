@@ -1,8 +1,9 @@
-import { createContext, ReactNode, useContext, useEffect } from "react";
+import { createContext, ReactNode, useContext, useEffect, useState } from "react";
 import {
   useQuery,
   useMutation,
   UseMutationResult,
+  useQueryClient,
 } from "@tanstack/react-query";
 import { insertUserSchema, User as SelectUser, registerSchema, loginSchema } from "@shared/schema";
 import { getQueryFn, apiRequest, queryClient, setAuthToken } from "../lib/queryClient";
@@ -50,6 +51,7 @@ const removeToken = (): void => {
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   // Initialize auth token from localStorage on component mount
   useEffect(() => {
@@ -66,7 +68,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     data: user,
     error,
     isLoading,
-    refetch: refetchUser
   } = useQuery<SelectUser | null, Error>({
     queryKey: ["/api/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
