@@ -203,7 +203,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ message: "You don't have access to this file" });
       }
       
-      res.json(audioFile);
+      // Get segments list for this file
+      const segments = await storage.getAudioSegments(parseInt(req.params.id));
+      
+      // Return file with segments list
+      res.json({
+        ...audioFile,
+        uploadedAt: audioFile.createdAt ? audioFile.createdAt.toISOString() : null,
+        segmentsList: segments.map(segment => ({
+          id: segment.id,
+          startTime: segment.startTime / 1000, // Convert to seconds for display
+          endTime: segment.endTime / 1000, // Convert to seconds for display
+          duration: segment.duration / 1000, // Convert to seconds for display
+          status: segment.status
+        }))
+      });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

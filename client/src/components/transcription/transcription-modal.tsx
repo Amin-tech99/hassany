@@ -24,6 +24,24 @@ interface TranscriptionModalProps {
   onClose: () => void;
 }
 
+// Define the shape of the transcription data
+interface Transcription {
+  id?: number;
+  text: string;
+  notes?: string | null;
+  status?: string;
+  rating?: number | null;
+  reviewNotes?: string | null;
+}
+
+// Define the shape of the segment data
+interface SegmentData {
+  id: number;
+  audioId: string;
+  audioUrl: string;
+  transcription?: Transcription;
+}
+
 export function TranscriptionModal({
   segmentId,
   isOpen,
@@ -43,7 +61,7 @@ export function TranscriptionModal({
   const isReviewer = user?.role === "reviewer" || user?.role === "admin";
   
   // Fetch transcription data
-  const { data: segmentData, isLoading } = useQuery({
+  const { data: segmentData, isLoading } = useQuery<SegmentData>({
     queryKey: [`/api/segments/${segmentId}`],
     enabled: segmentId !== null && isOpen,
   });
@@ -244,12 +262,10 @@ export function TranscriptionModal({
             {/* Quality Review (for reviewers only) */}
             {isReviewer && (
               <div className="mt-4 border-t pt-4">
-                <div className="space-y-4">
-                  <h4 className="text-sm font-medium text-gray-700">Quality Review</h4>
-                  
-                  {/* Rating Stars */}
-                  <div className="flex items-center space-x-4">
-                    <span className="text-sm text-gray-500">Accuracy:</span>
+                <div className="flex flex-wrap items-center gap-4">
+                  {/* Rating Stars and Label - Horizontal Layout */}
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-medium text-gray-700 whitespace-nowrap">Rating:</h4>
                     <div className="flex items-center">
                       {[1, 2, 3, 4, 5].map((star) => (
                         <button
@@ -260,7 +276,7 @@ export function TranscriptionModal({
                         >
                           <Star
                             className={cn(
-                              "h-5 w-5",
+                              "h-4 w-4",
                               rating && star <= rating
                                 ? "text-yellow-500 fill-yellow-500"
                                 : "text-gray-300"
@@ -271,38 +287,41 @@ export function TranscriptionModal({
                     </div>
                   </div>
                   
-                  {/* Approval Status */}
-                  <RadioGroup
-                    value={approvalStatus || ""}
-                    onValueChange={(value) => 
-                      setApprovalStatus(value as "approve" | "needs_revision")
-                    }
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="approve" id="approve" />
-                      <Label htmlFor="approve">Approve</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="needs_revision" id="needs-revision" />
-                      <Label htmlFor="needs-revision">Needs Revision</Label>
-                    </div>
-                  </RadioGroup>
-                  
-                  {/* Revision Notes (shown only when "Needs Revision" is selected) */}
-                  {approvalStatus === "needs_revision" && (
-                    <div className="mt-2">
-                      <Label htmlFor="revision-notes">Revision Notes</Label>
-                      <Textarea
-                        id="revision-notes"
-                        rows={2}
-                        placeholder="Provide feedback for the transcriber..."
-                        value={reviewNotes}
-                        onChange={(e) => setReviewNotes(e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                  )}
+                  {/* Approval Status - Horizontal Radio Layout */}
+                  <div className="flex items-center gap-4">
+                    <h4 className="text-sm font-medium text-gray-700 whitespace-nowrap">Status:</h4>
+                    <RadioGroup
+                      value={approvalStatus || ""}
+                      onValueChange={(value) => 
+                        setApprovalStatus(value as "approve" | "needs_revision")
+                      }
+                      className="flex gap-4"
+                    >
+                      <div className="flex items-center gap-1">
+                        <RadioGroupItem value="approve" id="approve" />
+                        <Label htmlFor="approve" className="text-sm cursor-pointer">Approve</Label>
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <RadioGroupItem value="needs_revision" id="needs-revision" />
+                        <Label htmlFor="needs-revision" className="text-sm cursor-pointer">Needs Revision</Label>
+                      </div>
+                    </RadioGroup>
+                  </div>
                 </div>
+                
+                {/* Revision Notes (compact, shown only when "Needs Revision" is selected) */}
+                {approvalStatus === "needs_revision" && (
+                  <div className="mt-2">
+                    <Textarea
+                      id="revision-notes"
+                      rows={2}
+                      placeholder="Provide feedback for revision..."
+                      value={reviewNotes}
+                      onChange={(e) => setReviewNotes(e.target.value)}
+                      className="mt-1 text-sm"
+                    />
+                  </div>
+                )}
               </div>
             )}
           </>
