@@ -1,4 +1,4 @@
-import { Switch, Route } from "wouter";
+import { Routes, Route, Navigate } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -14,16 +14,16 @@ import { AuthProvider } from "./hooks/use-auth";
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/auth" component={AuthPage} />
-      <ProtectedRoute path="/" component={DashboardPage} />
-      <ProtectedRoute path="/transcriptions" component={TranscriptionsPage} />
-      <ProtectedRoute path="/transcriptions/:id" component={TranscriptionsPage} />
-      <ProtectedRoute path="/audio-processing" component={AudioProcessingPage} />
-      <ProtectedRoute path="/team" component={TeamManagementPage} adminOnly={true} />
-      <ProtectedRoute path="/export" component={ExportDataPage} adminOnly={true} />
-      <Route path="*" component={NotFound} />
-    </Switch>
+    <Routes>
+      <Route path="/auth" element={<AuthPage />} />
+      <Route path="/" element={<ProtectedRoute><DashboardPage /></ProtectedRoute>} />
+      <Route path="/transcriptions" element={<ProtectedRoute><TranscriptionsPage /></ProtectedRoute>} />
+      <Route path="/transcriptions/:id" element={<ProtectedRoute><TranscriptionsPage /></ProtectedRoute>} />
+      <Route path="/audio-processing" element={<ProtectedRoute><AudioProcessingPage /></ProtectedRoute>} />
+      <Route path="/team" element={<ProtectedRoute adminOnly={true}><TeamManagementPage /></ProtectedRoute>} />
+      <Route path="/export" element={<ProtectedRoute adminOnly={true}><ExportDataPage /></ProtectedRoute>} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
   );
 }
 
