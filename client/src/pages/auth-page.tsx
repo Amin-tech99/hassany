@@ -171,14 +171,14 @@ export default function AuthPage() {
           animate="visible"
         >
           <motion.h1 
-            className="text-4xl font-bold mb-8"
+            className="text-4xl font-bold mb-8 text-white drop-shadow-md"
             variants={itemVariants}
           >
             Collaborative Speech-to-Text Transcription
           </motion.h1>
           
           <motion.p 
-            className="text-lg mb-6 text-white/90"
+            className="text-lg mb-6 text-white drop-shadow-md"
             variants={itemVariants}
           >
             A platform designed for teams to efficiently collect, process, and transcribe
@@ -187,24 +187,24 @@ export default function AuthPage() {
           
           {/* Platform highlights */}
           <motion.div 
-            className="mb-8 bg-white/5 backdrop-blur-sm p-4 rounded-lg border border-white/10"
+            className="mb-8 bg-black/20 backdrop-blur-sm p-4 rounded-lg border border-white/20 shadow-lg"
             variants={itemVariants}
             custom={1}
           >
-            <h3 className="text-lg font-semibold mb-3 flex items-center">
-              <span className="bg-black/30 p-1 rounded-md mr-2">
-                <Wand2 className="h-4 w-4" />
+            <h3 className="text-lg font-semibold mb-3 flex items-center text-white drop-shadow-md">
+              <span className="bg-black p-1 rounded-md mr-2">
+                <Wand2 className="h-4 w-4 text-white" />
               </span>
               Platform Highlights
             </h3>
-            <ul className="space-y-2 text-sm text-white/80">
+            <ul className="space-y-2 text-sm text-white">
               <motion.li 
                 className="flex items-center" 
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.5 }}
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-black mr-2"></span>
+                <span className="h-2 w-2 rounded-full bg-white mr-2 flex-shrink-0"></span>
                 Real-time collaboration between transcribers and reviewers
               </motion.li>
               <motion.li 
@@ -213,7 +213,7 @@ export default function AuthPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.7 }}
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-black mr-2"></span>
+                <span className="h-2 w-2 rounded-full bg-white mr-2 flex-shrink-0"></span>
                 Dialects, accents, and cultural context preservation
               </motion.li>
               <motion.li 
@@ -222,7 +222,7 @@ export default function AuthPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.9 }}
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-black mr-2"></span>
+                <span className="h-2 w-2 rounded-full bg-white mr-2 flex-shrink-0"></span>
                 Automated speech segmentation with manual adjustment tools
               </motion.li>
               <motion.li 
@@ -231,7 +231,7 @@ export default function AuthPage() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 1.1 }}
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-black mr-2"></span>
+                <span className="h-2 w-2 rounded-full bg-white mr-2 flex-shrink-0"></span>
                 Customizable workflow stages for different project needs
               </motion.li>
             </ul>
@@ -273,7 +273,7 @@ export default function AuthPage() {
             </motion.div>
 
             <motion.div 
-              className="flex items-start p-4 rounded-lg bg-white/10 backdrop-blur-sm shadow-xl transform transition-all"
+              className="flex items-start p-4 rounded-lg bg-black/30 backdrop-blur-sm shadow-xl transform transition-all"
               variants={itemVariants}
               whileHover={{ scale: 1.03 }}
             >
@@ -281,17 +281,17 @@ export default function AuthPage() {
                 <Headphones className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg mb-1">Streamlined Workflow</h3>
-                <p className="text-white/80">Upload, segment, transcribe, and review audio in one seamless process</p>
+                <h3 className="font-semibold text-lg mb-1 text-white">Streamlined Workflow</h3>
+                <p className="text-white">Upload, segment, transcribe, and review audio in one seamless process</p>
               </div>
               <motion.div 
-                className="ml-2 w-2 h-2 bg-black rounded-full opacity-60"
+                className="ml-2 w-2 h-2 bg-white rounded-full opacity-60"
                 animate={pulseAnimation}
               />
             </motion.div>
             
             <motion.div 
-              className="flex items-start p-4 rounded-lg bg-white/10 backdrop-blur-sm shadow-xl transform transition-all"
+              className="flex items-start p-4 rounded-lg bg-black/30 backdrop-blur-sm shadow-xl transform transition-all"
               variants={itemVariants}
               whileHover={{ scale: 1.03 }}
             >
@@ -299,17 +299,17 @@ export default function AuthPage() {
                 <FileText className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg mb-1">Quality Control</h3>
-                <p className="text-white/80">Multi-stage review process ensures high-quality transcriptions</p>
+                <h3 className="font-semibold text-lg mb-1 text-white">Quality Control</h3>
+                <p className="text-white">Multi-stage review process ensures high-quality transcriptions</p>
               </div>
               <motion.div 
-                className="ml-2 w-2 h-2 bg-black rounded-full opacity-60"
+                className="ml-2 w-2 h-2 bg-white rounded-full opacity-60"
                 animate={pulseAnimation}
               />
             </motion.div>
             
             <motion.div 
-              className="flex items-start p-4 rounded-lg bg-white/10 backdrop-blur-sm shadow-xl transform transition-all"
+              className="flex items-start p-4 rounded-lg bg-black/30 backdrop-blur-sm shadow-xl transform transition-all"
               variants={itemVariants}
               whileHover={{ scale: 1.03 }}
             >
@@ -317,11 +317,11 @@ export default function AuthPage() {
                 <Download className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="font-semibold text-lg mb-1">ML-Ready Export</h3>
-                <p className="text-white/80">Export data in Whisper-compatible format for AI model training</p>
+                <h3 className="font-semibold text-lg mb-1 text-white">ML-Ready Export</h3>
+                <p className="text-white">Export data in Whisper-compatible format for AI model training</p>
               </div>
               <motion.div 
-                className="ml-2 w-2 h-2 bg-black rounded-full opacity-60"
+                className="ml-2 w-2 h-2 bg-white rounded-full opacity-60"
                 animate={pulseAnimation}
               />
             </motion.div>
