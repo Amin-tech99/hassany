@@ -98,24 +98,28 @@ export function AuthForm() {
       onValueChange={(value) => setActiveTab(value as "login" | "register")}
       className="w-full max-w-md"
     >
-      <TabsList className="grid w-full grid-cols-2 mb-6 shadow-md">
+      <TabsList className="grid w-full grid-cols-2 mb-6 h-12 p-1 rounded-lg bg-gray-100 shadow-md">
         <TabsTrigger 
           value="login" 
           className={cn(
-            "data-[state=active]:bg-primary-600 data-[state=active]:text-white py-3 font-medium",
-            "transition-all duration-300"
+            "rounded-md data-[state=active]:bg-white data-[state=active]:text-primary-700 font-medium text-base",
+            "transition-all duration-300 data-[state=active]:shadow-md",
+            "border-none hover:bg-gray-200 data-[state=active]:font-bold"
           )}
         >
-          Login
+          <User className="h-4 w-4 mr-2" />
+          <span>Login</span>
         </TabsTrigger>
         <TabsTrigger 
           value="register" 
           className={cn(
-            "data-[state=active]:bg-primary-600 data-[state=active]:text-white py-3 font-medium",
-            "transition-all duration-300"
+            "rounded-md data-[state=active]:bg-white data-[state=active]:text-primary-700 font-medium text-base",
+            "transition-all duration-300 data-[state=active]:shadow-md",
+            "border-none hover:bg-gray-200 data-[state=active]:font-bold"
           )}
         >
-          Register
+          <UserCheck className="h-4 w-4 mr-2" />
+          <span>Register</span>
         </TabsTrigger>
       </TabsList>
 
@@ -126,8 +130,17 @@ export function AuthForm() {
           animate="visible"
           exit="exit"
           key="login-form"
-          className="bg-white p-6 rounded-lg shadow-lg"
+          className="bg-white p-6 rounded-lg shadow-lg border border-gray-200"
         >
+          <motion.h3 
+            className="text-lg font-bold text-gray-800 mb-6 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            Welcome Back
+          </motion.h3>
+          
           <Form {...loginForm}>
             <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-6">
               <motion.div variants={inputVariants} custom={0} initial="hidden" animate="visible">
@@ -196,8 +209,17 @@ export function AuthForm() {
           animate="visible"
           exit="exit"
           key="register-form"
-          className="bg-white p-6 rounded-lg shadow-lg"
+          className="bg-white p-6 rounded-lg shadow-lg border border-gray-200"
         >
+          <motion.h3 
+            className="text-lg font-bold text-gray-800 mb-6 text-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
+            Create an Account
+          </motion.h3>
+          
           <Form {...registerForm}>
             <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-6">
               <motion.div variants={inputVariants} custom={0} initial="hidden" animate="visible">

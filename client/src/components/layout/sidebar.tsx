@@ -110,10 +110,10 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
   const ToggleButton = () => (
     <button
       onClick={() => setCollapsed(!collapsed)}
-      className="absolute -right-4 top-20 hidden md:flex h-8 w-8 items-center justify-center rounded-full bg-primary-500 text-white shadow-md hover:bg-primary-600 focus:outline-none transition-transform duration-300 hover:scale-110"
+      className="absolute -right-4 top-20 hidden md:flex h-10 w-10 items-center justify-center rounded-full bg-white text-primary-700 shadow-lg hover:bg-gray-100 focus:outline-none transition-all duration-300 hover:scale-110 border border-gray-200"
       aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
     >
-      {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+      {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
     </button>
   );
 
@@ -183,12 +183,16 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                       "flex items-center py-3 text-sm font-medium rounded-lg transition-all duration-200",
                       collapsed ? "justify-center px-2" : "px-5",
                       isActive 
-                        ? "bg-slate-700 text-white font-bold shadow-md" 
-                        : "text-slate-300 hover:bg-slate-700/60 hover:text-white"
+                        ? "bg-primary-600/30 text-white font-bold shadow-md border-l-4 border-primary-500" 
+                        : "text-slate-300 hover:bg-slate-700/60 hover:text-white hover:border-l-4 hover:border-primary-500/50"
                     )}
                     title={collapsed ? item.label : undefined}
                   >
-                    <span className={item.color || "text-white"}>
+                    <span className={cn(
+                      item.color || "text-white",
+                      "transition-transform duration-200",
+                      isActive && "scale-110"
+                    )}>
                       {item.icon}
                     </span>
                     {!collapsed && <span className="ml-3">{item.label}</span>}
@@ -216,7 +220,7 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                className={cn("rounded-lg hover:bg-slate-700/80 p-2", collapsed ? "mt-2" : "ml-auto")} 
+                className={cn("rounded-lg hover:bg-red-500/20 p-2", collapsed ? "mt-2" : "ml-auto")} 
                 onClick={handleLogout}
                 disabled={logoutMutation.isPending}
               >
