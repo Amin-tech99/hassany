@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { format } from "date-fns";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAudioProcessor } from "@/hooks/use-audio-processor";
@@ -21,7 +21,7 @@ interface AudioFile {
 }
 
 export function ProcessingQueue() {
-  const { cancelProcessing, isCancelling } = useAudioProcessor();
+  const { cancelProcessing, deleteAudio, isCancelling, isDeleting } = useAudioProcessor();
   const { toast } = useToast();
   const [downloadingSegmentId, setDownloadingSegmentId] = useState<number | null>(null);
   
@@ -164,6 +164,13 @@ export function ProcessingQueue() {
     }
   };
   
+  // Handle delete audio
+  const handleDeleteAudio = (fileId: number) => {
+    if (confirm("Are you sure you want to delete this audio file? This action cannot be undone.")) {
+      deleteAudio(fileId);
+    }
+  };
+  
   return (
     <div>
       <h3 className="text-lg leading-6 font-medium text-white">Processing Queue</h3>
@@ -264,6 +271,21 @@ export function ProcessingQueue() {
                             ) : (
                               <span className="text-gray-400 text-xs italic">No actions available</span>
                             )}
+                            
+                            {/* Add Delete button for all files */}
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleDeleteAudio(file.id)}
+                              disabled={isDeleting}
+                              className="ml-2"
+                            >
+                              {isDeleting ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Trash2 className="h-4 w-4" />
+                              )}
+                            </Button>
                           </td>
                         </tr>
                       ))

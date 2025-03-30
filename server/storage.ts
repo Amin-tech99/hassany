@@ -104,6 +104,7 @@ export interface IStorage {
   updateAudioFile(id: number, updates: AudioFileUpdate): Promise<AudioFile>;
   updateAudioFileStatus(id: number, status: string): Promise<AudioFile>;
   getAllAudioFileRecords(): Promise<AudioFile[]>;
+  deleteAudioFile(id: number): Promise<boolean>;
 
   // Audio segment operations
   createAudioSegment(segment: InsertAudioSegment): Promise<AudioSegment>;
@@ -114,6 +115,7 @@ export interface IStorage {
   getAudioSegments(fileId: number): Promise<AudioSegment[]>;
   getAvailableSegments(): Promise<AudioSegment[]>;
   getAllSegments(): Promise<AudioSegment[]>;
+  deleteAudioSegment(id: number): Promise<boolean>;
   
   // Transcription operations
   createTranscription(transcription: InsertTranscription): Promise<Transcription>;
@@ -716,6 +718,28 @@ export class MemStorage implements IStorage {
             task, // string
         };
     });
+  }
+
+  async deleteAudioSegment(id: number): Promise<boolean> {
+    const segment = await this.getAudioSegmentById(id);
+    if (!segment) {
+      return false;
+    }
+    
+    segment.status = "deleted";
+    this.audioSegments.set(id, segment);
+    return true;
+  }
+
+  async deleteAudioFile(id: number): Promise<boolean> {
+    const file = await this.getAudioFileById(id);
+    if (!file) {
+      return false;
+    }
+    
+    file.status = "deleted";
+    this.audioFiles.set(id, file);
+    return true;
   }
 }
 

@@ -47,7 +47,7 @@ const storage_config = multer.diskStorage({
 
 const upload = multer({
   storage: storage_config,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB limit
   fileFilter: (req, file, cb) => {
     const allowedTypes = [
       "audio/mpeg",
@@ -218,6 +218,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
           status: segment.status
         }))
       });
+    } catch (error: any) {
+      res.status(500).json({ message: error.message });
+    }
+  });
+
+  app.delete("/api/audio/:id", isAuthenticated, async (req, res) => {
+    try {
+      const fileId = parseInt(req.params.id);
+      const audioFile = await storage.getAudioFileById(fileId);
+      
+      if (!audioFile) {
+        return res.status(404).json({ message: "Audio file not found" });
+      }
+      
+      // Check if user has access to this file
+      if (audioFile.uploadedBy !== req.user!.id && req.user!.role !== "admin") {
+        return res.status(403).json({ message: "You don't have access to this file" });
+      }
+      
+      // Delete file from the file system
+      if (audioFile.originalPath && fs.existsSync(audioFile.originalPath)) {
+        await fsPromises.unlink(audioFile.originalPath);
+      }
+      
+      // Delete associated segments
+      const segments = await storage.getAudioSegments(fileId);
+      for (const segment of segments) {
+        // Delete segment files
+        const segmentPath = path.join(segmentsDir, `${segment.id}.wav`);
+        if (fs.existsSync(segmentPath)) {
+          await fsPromises.unlink(segmentPath);
+        }
+        
+        // Delete segment from database
+        await storage.deleteAudioSegment(segment.id);
+      }
+      
+      // Delete audio file from database
+      await storage.deleteAudioFile(fileId);
+      
+      res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ message: error.message });
     }

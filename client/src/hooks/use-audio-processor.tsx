@@ -132,12 +132,41 @@ export function useAudioProcessor() {
     cancelProcessingMutation.mutate(fileId);
   };
 
+  // Delete audio mutation
+  const deleteAudioMutation = useMutation({
+    mutationFn: async (fileId: number) => {
+      return apiRequest("DELETE", `/api/audio/${fileId}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/audio'] });
+      
+      toast({
+        title: "Audio deleted",
+        description: "The audio file and its segments have been deleted.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Delete failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Delete audio file
+  const deleteAudio = (fileId: number) => {
+    deleteAudioMutation.mutate(fileId);
+  };
+
   return {
     uploadAudio,
     cancelProcessing,
+    deleteAudio,
     uploadProgress,
     isUploading: uploadAudioMutation.isPending,
     isCancelling: cancelProcessingMutation.isPending,
+    isDeleting: deleteAudioMutation.isPending,
     uploadError: uploadAudioMutation.error,
   };
 }
