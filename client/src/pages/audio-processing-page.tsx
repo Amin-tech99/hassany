@@ -1,8 +1,7 @@
-import { MainLayout } from "@/components/layout/main-layout";
 import { AudioUpload } from "@/components/audio-processing/audio-upload";
 import { ProcessingQueue } from "@/components/audio-processing/processing-queue";
 import { useSearchParams } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -173,172 +172,33 @@ export default function AudioProcessingPage() {
     enabled: !!fileId,
   });
 
-  return (
-    <MainLayout>
-      <div className="mx-auto px-4 sm:px-6 md:px-8">
-        {fileId && fileDetails ? (
-          <div>
-            <div className="sm:flex sm:items-center mb-6">
-              <div className="sm:flex-auto">
-                <div className="flex items-center gap-3">
-                  <Link to="/audio-processing">
-                    <Button variant="ghost" size="sm" className="flex items-center gap-1">
-                      <ChevronLeft className="h-4 w-4" />
-                      Back to Processing Queue
-                    </Button>
-                  </Link>
-                  <h1 className="text-2xl font-semibold text-white">Audio File Details</h1>
-                </div>
-                <p className="mt-2 text-sm text-white/70">
-                  View details and segments for this audio file.
-                </p>
-              </div>
-            </div>
-
-            {isLoadingDetails ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-              </div>
-            ) : (
-              <div className="space-y-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>File Information</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <dl className="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2 lg:grid-cols-3">
-                      <div>
-                        <dt className="text-sm font-medium text-white/60">Filename</dt>
-                        <dd className="mt-1 text-sm text-white">
-                          {fileDetails.filename}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-white/60">Upload Date</dt>
-                        <dd className="mt-1 text-sm text-white">
-                          {formatDate(fileDetails.uploadedAt)}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-white/60">Size</dt>
-                        <dd className="mt-1 text-sm text-white">
-                          {formatFileSize(fileDetails.size)}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-white/60">Status</dt>
-                        <dd className="mt-1">{getStatusBadge(fileDetails.status, fileDetails.processingProgress)}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-white/60">Segments</dt>
-                        <dd className="mt-1 text-sm text-white">
-                          {fileDetails.segments || "--"}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-sm font-medium text-white/60">Actions</dt>
-                        <dd className="mt-1">
-                          {fileDetails.status.toLowerCase() === "processed" && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDownloadSegments(fileDetails.id, fileDetails.filename)}
-                              disabled={downloadingSegmentId === fileDetails.id}
-                              className="flex items-center gap-2"
-                            >
-                              {downloadingSegmentId === fileDetails.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Download className="h-4 w-4" />
-                              )}
-                              Download Segments
-                            </Button>
-                          )}
-                        </dd>
-                      </div>
-                    </dl>
-                  </CardContent>
-                </Card>
-
-                {fileDetails.segmentsList && fileDetails.segmentsList.length > 0 && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Segments</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-700">
-                          <thead className="bg-black/40">
-                            <tr>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                                Segment #
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                                Start Time
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                                End Time
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                                Duration
-                              </th>
-                              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
-                                Status
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="bg-black/30 divide-y divide-gray-700">
-                            {fileDetails.segmentsList.map((segment, index) => (
-                              <tr key={segment.id}>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
-                                  {index + 1}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
-                                  {formatTime(segment.startTime)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
-                                  {formatTime(segment.endTime)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
-                                  {formatTime(segment.duration)}
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
-                                  {getStatusBadge(segment.status)}
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            )}
-          </div>
-        ) : (
-          <>
-            <div className="sm:flex sm:items-center">
-              <div className="sm:flex-auto">
-                <h1 className="text-2xl font-semibold text-white">Audio Processing</h1>
-                <p className="mt-2 text-sm text-white/70">
-                  Upload and process audio files to prepare them for transcription.
-                </p>
-              </div>
-            </div>
-
-            {/* Upload Section */}
-            <div className="mt-6">
-              <AudioUpload />
-            </div>
-
-            {/* Processing Queue */}
-            <div className="mt-8">
-              <ProcessingQueue />
-            </div>
-          </>
-        )}
+  // Simple placeholder for easy troubleshooting
+  if (fileId && fileDetails) {
+    return (
+      <div>
+        <h1 className="text-xl font-bold text-white mb-4">
+          Audio File: {fileDetails.filename}
+        </h1>
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => window.location.href = '/audio-processing'}
+        >
+          Back to Processing
+        </Button>
       </div>
-    </MainLayout>
+    );
+  }
+
+  return (
+    <div>
+      <h1 className="text-xl font-bold text-white mb-4">
+        Audio Processing
+      </h1>
+      <div className="space-y-6">
+        <AudioUpload />
+        <ProcessingQueue />
+      </div>
+    </div>
   );
 }
