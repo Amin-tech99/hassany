@@ -231,61 +231,64 @@ export function ProcessingQueue() {
                             {file.segments || "--"}
                           </td>
                           <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                            {file.status.toLowerCase() === "processing" ? (
+                            <div className="flex items-center justify-end space-x-2">
+                              {/* Delete button - first in the row to make it always visible */}
                               <Button
                                 variant="destructive"
                                 size="sm"
-                                onClick={() => handleCancelProcessing(file.id)}
-                                disabled={isCancelling}
+                                onClick={() => handleDeleteAudio(file.id)}
+                                disabled={isDeleting}
+                                title="Delete file"
                               >
-                                {isCancelling ? (
+                                {isDeleting ? (
                                   <Loader2 className="h-4 w-4 animate-spin" />
                                 ) : (
-                                  "Cancel"
-                                )}
-                              </Button>
-                            ) : file.status.toLowerCase() === "processed" ? (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleDownloadSegments(file.id, file.filename)}
-                                disabled={downloadingSegmentId === file.id}
-                                className={cn(
-                                  "flex items-center text-sm px-3 py-1 h-8",
-                                  "bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100",
-                                  "dark:bg-primary-900/20 dark:text-primary-400 dark:border-primary-800 dark:hover:bg-primary-900/30"
-                                )}
-                              >
-                                {downloadingSegmentId === file.id ? (
                                   <>
-                                    <div className="h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mr-2" />
-                                    <span>Downloading...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <Download className="h-4 w-4 mr-1" />
-                                    <span>Download Segments</span>
+                                    <Trash2 className="h-4 w-4 mr-1" />
+                                    <span>Delete</span>
                                   </>
                                 )}
                               </Button>
-                            ) : (
-                              <span className="text-gray-400 text-xs italic">No actions available</span>
-                            )}
                             
-                            {/* Add Delete button for all files */}
-                            <Button
-                              variant="destructive"
-                              size="sm"
-                              onClick={() => handleDeleteAudio(file.id)}
-                              disabled={isDeleting}
-                              className="ml-2"
-                            >
-                              {isDeleting ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Trash2 className="h-4 w-4" />
-                              )}
-                            </Button>
+                              {file.status.toLowerCase() === "processing" ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleCancelProcessing(file.id)}
+                                  disabled={isCancelling}
+                                >
+                                  {isCancelling ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    "Cancel"
+                                  )}
+                                </Button>
+                              ) : file.status.toLowerCase() === "processed" ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleDownloadSegments(file.id, file.filename)}
+                                  disabled={downloadingSegmentId === file.id}
+                                  className={cn(
+                                    "flex items-center text-sm px-3 py-1 h-8",
+                                    "bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100",
+                                    "dark:bg-primary-900/20 dark:text-primary-400 dark:border-primary-800 dark:hover:bg-primary-900/30"
+                                  )}
+                                >
+                                  {downloadingSegmentId === file.id ? (
+                                    <>
+                                      <div className="h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mr-2" />
+                                      <span>Downloading...</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Download className="h-4 w-4 mr-1" />
+                                      <span>Download Segments</span>
+                                    </>
+                                  )}
+                                </Button>
+                              ) : null}
+                            </div>
                           </td>
                         </tr>
                       ))
