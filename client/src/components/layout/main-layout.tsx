@@ -1,11 +1,8 @@
+import React, { useState } from "react";
+import { Outlet } from "react-router-dom";
 import { Sidebar } from "./sidebar";
-import { ReactNode, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-
-interface MainLayoutProps {
-  children: ReactNode;
-}
 
 // DNA Background Animation Component
 const DnaBackground = () => {
@@ -90,61 +87,21 @@ const DnaBackground = () => {
   );
 };
 
-export function MainLayout({ children }: MainLayoutProps) {
+export function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  // Add state to track screen size
-  const [isMobile, setIsMobile] = useState(false);
-  
-  // Check for screen size and user preference in localStorage on mount
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    // Initial check
-    checkMobile();
-    
-    // Add resize listener
-    window.addEventListener('resize', checkMobile);
-    
-    // Load sidebar preference
-    const savedState = localStorage.getItem('sidebar-collapsed');
-    if (savedState !== null) {
-      setSidebarCollapsed(savedState === 'true');
-    } else if (window.innerWidth < 1024) {
-      // Default to collapsed on smaller screens
-      setSidebarCollapsed(true);
-    }
-    
-    return () => window.removeEventListener('resize', checkMobile);
-  }, []);
-  
-  // Save preference when changed
-  const handleCollapseChange = (collapsed: boolean) => {
-    setSidebarCollapsed(collapsed);
-    localStorage.setItem('sidebar-collapsed', String(collapsed));
-  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative">
-      {/* DNA Background Animation with reduced opacity for better readability */}
-      <DnaBackground />
-      
-      <Sidebar collapsed={sidebarCollapsed} setCollapsed={handleCollapseChange} />
-      
-      {/* Main Content Area - adjusted for mobile */}
-      <div className={cn(
-        "transition-all duration-300 relative z-10 pt-14", // Added padding-top for mobile menu
-        "md:pt-6", // Normal padding on desktop
-        sidebarCollapsed ? "md:pl-20" : "md:pl-72"
+    <div className="min-h-screen bg-slate-950">
+      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
+      <main className={cn(
+        "min-h-screen transition-all duration-300",
+        "md:pl-64", // Default padding for expanded sidebar
+        sidebarCollapsed && "md:pl-16" // Reduced padding when sidebar is collapsed
       )}>
-        {/* Main Content */}
-        <main className="py-4 md:py-6 px-4 md:px-6">
-          <div className="backdrop-blur-sm bg-black/10 rounded-xl border border-white/5 shadow-xl p-3 md:p-6">
-            {children}
-          </div>
-        </main>
-      </div>
+        <div className="container mx-auto px-4 py-8">
+          <Outlet />
+        </div>
+      </main>
     </div>
   );
 }

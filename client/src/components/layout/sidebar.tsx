@@ -12,7 +12,9 @@ import {
   BookText,
   Database,
   Menu,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -161,7 +163,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
 
   const sidebarContent = (
     <>
-      <div className="h-16 border-b border-slate-800 flex items-center px-4 justify-between">
+      <div className="h-16 border-b border-slate-800 flex items-center px-4 justify-between relative">
         {!collapsed && (
           <motion.div 
             initial={{ opacity: 0 }} 
@@ -186,6 +188,22 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
             <X className="h-5 w-5" />
           </Button>
         </div>
+
+        {/* Toggle button - visible only on desktop */}
+        <div className="hidden md:block absolute right-2 top-1/2 -translate-y-1/2">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setCollapsed(!collapsed)}
+            className="h-8 w-8 rounded-full bg-slate-800/50 hover:bg-slate-700/50 text-white border border-slate-700"
+          >
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <ChevronLeft className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </div>
       
       <div className="flex-1 py-4 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
@@ -195,7 +213,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
             icon={<Home className="h-5 w-5 text-white" />}
             label="Dashboard"
             isActive={isPathActive("/")}
-            showTooltip={!mobileOpen}
+            showTooltip={!mobileOpen && collapsed}
           />
           
           <NavItem
@@ -203,7 +221,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
             icon={<ListMusic className="h-5 w-5 text-white" />}
             label="Audio Processing"
             isActive={isPathActive("/audio-processing")}
-            showTooltip={!mobileOpen}
+            showTooltip={!mobileOpen && collapsed}
           />
           
           <NavItem
@@ -211,7 +229,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
             icon={<FileText className="h-5 w-5 text-white" />}
             label="Transcription"
             isActive={isPathActive("/transcriptions")}
-            showTooltip={!mobileOpen}
+            showTooltip={!mobileOpen && collapsed}
           />
 
           {isAdmin && (
@@ -225,7 +243,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
                 icon={<FolderArchive className="h-5 w-5 text-white" />}
                 label="Export Data"
                 isActive={isPathActive("/export")}
-                showTooltip={!mobileOpen}
+                showTooltip={!mobileOpen && collapsed}
               />
               
               <NavItem
@@ -233,7 +251,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
                 icon={<Users className="h-5 w-5 text-white" />}
                 label="Manage Users"
                 isActive={isPathActive("/team")}
-                showTooltip={!mobileOpen}
+                showTooltip={!mobileOpen && collapsed}
               />
             </>
           )}
@@ -249,17 +267,27 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
               </span>
             </div>
             <div className="ml-3">
-              <div className="text-sm font-medium">{user?.username || "User"}</div>
+              <div className="text-sm font-medium text-white">{user?.username || "User"}</div>
               <div className="text-xs text-slate-500">{user?.role || "Role"}</div>
             </div>
           </div>
         ) : (
           <div className="flex justify-center mb-4">
-            <div className="w-8 h-8 rounded-full bg-primary-500/20 flex items-center justify-center">
-              <span className="text-sm font-bold text-primary-400">
-                {user?.username?.charAt(0).toUpperCase() || "U"}
-              </span>
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="w-8 h-8 rounded-full bg-primary-500/20 flex items-center justify-center">
+                    <span className="text-sm font-bold text-primary-400">
+                      {user?.username?.charAt(0).toUpperCase() || "U"}
+                    </span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{user?.username}</p>
+                  <p className="text-xs text-slate-400">{user?.role}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         )}
         
@@ -273,7 +301,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
             label="Logout"
             isAction={true}
             disabled={logoutMutation.isPending}
-            showTooltip={!mobileOpen}
+            showTooltip={!mobileOpen && collapsed}
           />
         </div>
       </div>
