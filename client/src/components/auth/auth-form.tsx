@@ -29,34 +29,35 @@ import { cn } from "@/lib/utils";
 // DNA helix animation component
 const DnaAnimation = () => {
   return (
-    <div className="absolute -right-16 h-full w-20 overflow-hidden opacity-40 pointer-events-none">
-      {Array.from({ length: 12 }).map((_, i) => (
+    <div className="absolute -right-16 h-full w-24 overflow-hidden opacity-40 pointer-events-none">
+      {Array.from({ length: 20 }).map((_, i) => (
         <motion.div
           key={i}
-          className="absolute w-16 flex justify-between"
-          style={{ top: `${i * 8}%` }}
+          className="absolute w-20 flex justify-between"
+          style={{ top: `${i * 5}%` }}
           animate={{ 
-            x: i % 2 === 0 ? [0, 10, 0] : [0, -10, 0],
-            opacity: [0.7, 1, 0.7]
+            x: i % 2 === 0 ? [0, 15, 0] : [0, -15, 0],
+            opacity: [0.5, 1, 0.5]
           }}
           transition={{ 
-            duration: 3 + (i % 3), 
+            duration: 3 + (i % 4), 
             repeat: Infinity, 
             repeatType: "mirror" 
           }}
         >
           <motion.div 
             className="h-2 w-2 rounded-full bg-primary-500"
-            animate={{ scale: [1, 1.2, 1] }}
+            animate={{ scale: [1, 1.3, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
           />
           <motion.div 
             className="h-2 w-2 rounded-full bg-white"
-            animate={{ scale: [1, 1.2, 1] }}
+            animate={{ scale: [1, 1.3, 1] }}
             transition={{ duration: 2, delay: 0.5, repeat: Infinity }}
           />
         </motion.div>
       ))}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent pointer-events-none" />
     </div>
   );
 };
@@ -133,12 +134,12 @@ export function AuthForm() {
       onValueChange={(value) => setActiveTab(value as "login" | "register")}
       className="w-full"
     >
-      <TabsList className="grid w-full grid-cols-2 mb-6 h-12 p-1 rounded-lg bg-white/10 backdrop-blur-sm border border-white/20">
+      <TabsList className="grid w-full grid-cols-2 mb-6 h-12 p-1 rounded-lg bg-black/40 backdrop-blur-sm border border-white/20">
         <TabsTrigger 
           value="login" 
           className={cn(
             "rounded-md data-[state=active]:bg-primary-600 data-[state=active]:text-white font-medium text-base",
-            "transition-all duration-300 text-gray-300 data-[state=active]:font-bold data-[state=active]:shadow-lg",
+            "transition-all duration-300 text-gray-200 data-[state=active]:font-bold data-[state=active]:shadow-lg",
             "border-none hover:bg-white/10"
           )}
         >
@@ -149,7 +150,7 @@ export function AuthForm() {
           value="register" 
           className={cn(
             "rounded-md data-[state=active]:bg-primary-600 data-[state=active]:text-white font-medium text-base",
-            "transition-all duration-300 text-gray-300 data-[state=active]:font-bold data-[state=active]:shadow-lg",
+            "transition-all duration-300 text-gray-200 data-[state=active]:font-bold data-[state=active]:shadow-lg",
             "border-none hover:bg-white/10"
           )}
         >
@@ -165,12 +166,12 @@ export function AuthForm() {
           animate="visible"
           exit="exit"
           key="login-form"
-          className="relative backdrop-blur-sm bg-black/30 p-6 rounded-lg border border-white/10 overflow-hidden"
+          className="relative backdrop-blur-sm bg-black/40 p-8 rounded-lg border border-white/10 overflow-hidden shadow-xl"
         >
           <DnaAnimation />
           
           <motion.h3 
-            className="text-lg font-bold text-white mb-6 text-center"
+            className="text-xl font-bold text-white mb-6 text-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
@@ -192,7 +193,7 @@ export function AuthForm() {
                           <AtSign className="absolute left-3 top-3 h-4 w-4 text-primary-400" />
                           <Input 
                             placeholder="Enter your username" 
-                            className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-primary-500" 
+                            className="pl-10 bg-black/30 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-primary-500" 
                             {...field} 
                           />
                         </div>
@@ -216,7 +217,7 @@ export function AuthForm() {
                           <Input 
                             type="password" 
                             placeholder="Enter your password" 
-                            className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-primary-500" 
+                            className="pl-10 bg-black/30 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-primary-500" 
                             {...field} 
                           />
                         </div>
@@ -279,17 +280,17 @@ export function AuthForm() {
           animate="visible"
           exit="exit"
           key="register-form"
-          className="relative backdrop-blur-sm bg-black/30 p-6 rounded-lg border border-white/10"
+          className="relative backdrop-blur-sm bg-black/40 p-8 rounded-lg border border-white/10 overflow-hidden shadow-xl"
         >
           <DnaAnimation />
           
           <motion.h3 
-            className="text-lg font-bold text-white mb-6 text-center"
+            className="text-xl font-bold text-white mb-6 text-center"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
-            Create an Account
+            Create Account
           </motion.h3>
           
           <Form {...registerForm}>
@@ -306,7 +307,7 @@ export function AuthForm() {
                           <User className="absolute left-3 top-3 h-4 w-4 text-primary-400" />
                           <Input 
                             placeholder="Enter your full name" 
-                            className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-primary-500" 
+                            className="pl-10 bg-black/30 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-primary-500" 
                             {...field} 
                           />
                         </div>
@@ -329,7 +330,7 @@ export function AuthForm() {
                           <AtSign className="absolute left-3 top-3 h-4 w-4 text-primary-400" />
                           <Input 
                             placeholder="Choose a username" 
-                            className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-primary-500" 
+                            className="pl-10 bg-black/30 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-primary-500" 
                             {...field} 
                           />
                         </div>
@@ -353,7 +354,7 @@ export function AuthForm() {
                           <Input 
                             type="password" 
                             placeholder="Create a password" 
-                            className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-primary-500" 
+                            className="pl-10 bg-black/30 border-white/20 text-white placeholder:text-gray-400 focus-visible:ring-primary-500" 
                             {...field} 
                           />
                         </div>
@@ -375,7 +376,7 @@ export function AuthForm() {
                         <FormControl>
                           <div className="relative">
                             <UserCog className="absolute left-3 top-3 h-4 w-4 text-primary-400 z-10" />
-                            <SelectTrigger className="pl-10 bg-white/10 border-white/20 text-white focus-visible:ring-primary-500">
+                            <SelectTrigger className="pl-10 bg-black/30 border-white/20 text-white focus-visible:ring-primary-500">
                               <SelectValue placeholder="Select a role" />
                             </SelectTrigger>
                           </div>
