@@ -6,8 +6,6 @@ import {
   Users, 
   LogOut,
   FileDown,
-  Settings,
-  Trash2,
   ListMusic,
   AlertCircle,
   FolderArchive,
@@ -114,7 +112,6 @@ function NavItem({
 export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCollapsed: (collapsed: boolean) => void }) {
   const location = useLocation();
   const { user, logoutMutation } = useAuth();
-  const [cleanupLoading, setCleanupLoading] = useState(false);
   
   const isPathActive = (path: string) => {
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -122,28 +119,6 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
 
   const handleLogout = () => {
     logoutMutation.mutate();
-  };
-
-  const handleCleanupStorage = async () => {
-    try {
-      setCleanupLoading(true);
-      const response = await fetch("/api/storage/cleanup", {
-        method: "POST",
-      });
-      
-      if (!response.ok) {
-        throw new Error("Failed to cleanup storage");
-      }
-      
-      const data = await response.json();
-      console.log("Storage cleanup result:", data);
-      // Success toast could be shown here
-    } catch (error) {
-      console.error("Error during storage cleanup:", error);
-      // Error toast could be shown here
-    } finally {
-      setCleanupLoading(false);
-    }
   };
 
   const isAdmin = user?.role === "admin";
@@ -210,17 +185,6 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
                 label="Manage Users"
                 isActive={isPathActive("/team")}
               />
-              
-              <NavItem
-                onClick={handleCleanupStorage}
-                icon={cleanupLoading ? 
-                  <div className="h-5 w-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> : 
-                  <Trash2 className="h-5 w-5 text-white" />
-                }
-                label="Cleanup Storage"
-                isAction={true}
-                disabled={cleanupLoading}
-              />
             </>
           )}
         </nav>
@@ -251,17 +215,10 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
         
         <div className="grid grid-cols-1 gap-2">
           <NavItem
-            to="/settings"
-            icon={<Settings className="h-5 w-5 text-white" />}
-            label="Settings"
-            isActive={isPathActive("/settings")}
-          />
-          
-          <NavItem
             onClick={handleLogout}
             icon={logoutMutation.isPending ? 
               <div className="h-5 w-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> : 
-              <LogOut className="h-5 w-5" />
+              <LogOut className="h-5 w-5 text-white" />
             }
             label="Logout"
             isAction={true}

@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { format } from "date-fns";
-import { Loader2, Download, ExternalLink } from "lucide-react";
+import { Loader2, Download } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAudioProcessor } from "@/hooks/use-audio-processor";
@@ -70,12 +70,6 @@ export function ProcessingQueue() {
       default:
         return <Badge>{status}</Badge>;
     }
-  };
-  
-  // Handle view details
-  const handleViewDetails = (fileId: number) => {
-    // Navigate to file details view
-    window.location.href = `/audio-processing?file=${fileId}`;
   };
   
   // Handle cancel processing
@@ -172,32 +166,32 @@ export function ProcessingQueue() {
   
   return (
     <div>
-      <h3 className="text-lg leading-6 font-medium text-gray-900">Processing Queue</h3>
+      <h3 className="text-lg leading-6 font-medium text-white">Processing Queue</h3>
       <div className="mt-2 flex flex-col">
         <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
             <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
               {isLoading ? (
-                <div className="flex justify-center py-8 bg-white">
+                <div className="flex justify-center py-8 bg-black/30 backdrop-blur-sm">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead className="bg-black/20">
                     <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-white sm:pl-6">
                         File Name
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
                         Size
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
                         Uploaded
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
                         Status
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
                         Segments
                       </th>
                       <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
@@ -205,28 +199,28 @@ export function ProcessingQueue() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
+                  <tbody className="divide-y divide-gray-700 bg-black/20 backdrop-blur-sm">
                     {audioFiles && audioFiles.length > 0 ? (
                       audioFiles.map((file) => (
                         <tr key={file.id}>
-                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-white sm:pl-6">
                             {file.filename}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-white/70">
                             {formatFileSize(file.size)}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-white/70">
                             {formatDate(file.uploadedAt)}
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm">
                             {getStatusBadge(file.status, file.processingProgress)}
                             {file.status.toLowerCase() === "processing" && file.processingProgress !== undefined && (
-                              <div className="mt-1 w-full bg-gray-200 rounded-full h-1.5">
+                              <div className="mt-1 w-full bg-gray-600 rounded-full h-1.5">
                                 <Progress value={file.processingProgress} className="h-1.5" />
                               </div>
                             )}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-white/70">
                             {file.segments || "--"}
                           </td>
                           <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
@@ -244,70 +238,38 @@ export function ProcessingQueue() {
                                 )}
                               </Button>
                             ) : file.status.toLowerCase() === "processed" ? (
-                              <div className="flex space-x-2 mt-2">
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleDownloadSegments(file.id, file.filename)}
-                                  disabled={downloadingSegmentId === file.id}
-                                  className={cn(
-                                    "flex items-center text-sm px-3 py-1 h-8",
-                                    "bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100",
-                                    "dark:bg-primary-900/20 dark:text-primary-400 dark:border-primary-800 dark:hover:bg-primary-900/30"
-                                  )}
-                                >
-                                  {downloadingSegmentId === file.id ? (
-                                    <>
-                                      <div className="h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mr-2" />
-                                      <span>Downloading...</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <Download className="h-4 w-4 mr-1" />
-                                      <span>Download Segments</span>
-                                    </>
-                                  )}
-                                </Button>
-                                
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={() => handleViewDetails(file.id)}
-                                  className={cn(
-                                    "flex items-center text-sm px-3 py-1 h-8 transition-all duration-300 group",
-                                    "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100",
-                                    "dark:bg-slate-900/20 dark:text-slate-300 dark:border-slate-800 dark:hover:bg-slate-900/30"
-                                  )}
-                                >
-                                  <motion.span 
-                                    initial={{ scale: 1 }}
-                                    whileHover={{ scale: 1.15 }}
-                                    transition={{ duration: 0.2 }}
-                                    className="mr-1.5"
-                                  >
-                                    <ExternalLink className="h-4 w-4 group-hover:text-primary-500 transition-colors" />
-                                  </motion.span>
-                                  <span className="group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
-                                    View Details
-                                  </span>
-                                </Button>
-                              </div>
-                            ) : (
                               <Button
-                                variant="link"
                                 size="sm"
-                                className="text-primary-600 hover:text-primary-900"
-                                onClick={() => handleViewDetails(file.id)}
+                                variant="outline"
+                                onClick={() => handleDownloadSegments(file.id, file.filename)}
+                                disabled={downloadingSegmentId === file.id}
+                                className={cn(
+                                  "flex items-center text-sm px-3 py-1 h-8",
+                                  "bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100",
+                                  "dark:bg-primary-900/20 dark:text-primary-400 dark:border-primary-800 dark:hover:bg-primary-900/30"
+                                )}
                               >
-                                View Details
+                                {downloadingSegmentId === file.id ? (
+                                  <>
+                                    <div className="h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mr-2" />
+                                    <span>Downloading...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Download className="h-4 w-4 mr-1" />
+                                    <span>Download Segments</span>
+                                  </>
+                                )}
                               </Button>
+                            ) : (
+                              <span className="text-gray-400 text-xs italic">No actions available</span>
                             )}
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={6} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                        <td colSpan={6} className="px-6 py-4 whitespace-nowrap text-sm text-white/50 text-center">
                           No audio files found. Upload an audio file to get started.
                         </td>
                       </tr>

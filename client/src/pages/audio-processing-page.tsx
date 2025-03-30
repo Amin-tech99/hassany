@@ -187,9 +187,9 @@ export default function AudioProcessingPage() {
                       Back to Processing Queue
                     </Button>
                   </Link>
-                  <h1 className="text-2xl font-semibold text-gray-900">Audio File Details</h1>
+                  <h1 className="text-2xl font-semibold text-white">Audio File Details</h1>
                 </div>
-                <p className="mt-2 text-sm text-gray-700">
+                <p className="mt-2 text-sm text-white/70">
                   View details and segments for this audio file.
                 </p>
               </div>
@@ -312,8 +312,8 @@ export default function AudioProcessingPage() {
           <>
             <div className="sm:flex sm:items-center">
               <div className="sm:flex-auto">
-                <h1 className="text-2xl font-semibold text-gray-900">Audio Processing</h1>
-                <p className="mt-2 text-sm text-gray-700">
+                <h1 className="text-2xl font-semibold text-white">Audio Processing</h1>
+                <p className="mt-2 text-sm text-white/70">
                   Upload and process audio files to prepare them for transcription.
                 </p>
               </div>

@@ -35,6 +35,15 @@ export default function TranscriptionsPage() {
   return (
     <MainLayout>
       <div className="mx-auto px-4 sm:px-6 md:px-8">
+        <div className="sm:flex sm:items-center mb-6">
+          <div className="sm:flex-auto">
+            <h1 className="text-2xl font-semibold text-white">Transcriptions</h1>
+            <p className="mt-2 text-sm text-white/70">
+              View and edit transcription segments from your processed audio files.
+            </p>
+          </div>
+        </div>
+        
         <TranscriptionList />
         
         <TranscriptionModal
