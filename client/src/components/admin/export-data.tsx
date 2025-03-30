@@ -171,24 +171,24 @@ export function ExportData() {
     <>
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Export for Whisper Fine-tuning</h1>
-          <p className="mt-2 text-sm text-gray-700">
+          <h1 className="text-2xl font-semibold text-white">Export for Whisper Fine-tuning</h1>
+          <p className="mt-2 text-sm text-white/70">
             Export verified transcriptions in Whisper-compatible JSON format for model training.
           </p>
         </div>
       </div>
 
       {/* Export Options */}
-      <Card className="mt-6 bg-white shadow">
+      <Card className="mt-6">
         <CardContent className="px-4 py-5 sm:p-6">
           <form onSubmit={handleSubmit} className="space-y-4">
             {/* Date Range */}
             <div>
-              <Label className="text-base font-medium text-gray-900">Optional Date Range</Label>
-              <p className="text-sm text-gray-500 mb-2">Leave empty to export all verified transcriptions</p>
+              <Label className="text-base font-medium text-white">Optional Date Range</Label>
+              <p className="text-sm text-white/70 mb-2">Leave empty to export all verified transcriptions</p>
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                 <div>
-                  <Label htmlFor="startDate" className="block text-sm font-medium text-gray-700">
+                  <Label htmlFor="startDate" className="block text-sm font-medium text-white/70">
                     Start Date
                   </Label>
                   <Input
@@ -196,11 +196,11 @@ export function ExportData() {
                     id="startDate"
                     value={formValues.startDate}
                     onChange={(e) => handleChange("startDate", e.target.value)}
-                    className="mt-1"
+                    className="mt-1 bg-black/30 border-white/20 text-white"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="endDate" className="block text-sm font-medium text-gray-700">
+                  <Label htmlFor="endDate" className="block text-sm font-medium text-white/70">
                     End Date
                   </Label>
                   <Input
@@ -208,7 +208,7 @@ export function ExportData() {
                     id="endDate"
                     value={formValues.endDate}
                     onChange={(e) => handleChange("endDate", e.target.value)}
-                    className="mt-1"
+                    className="mt-1 bg-black/30 border-white/20 text-white"
                   />
                 </div>
               </div>
@@ -221,8 +221,9 @@ export function ExportData() {
                   id="includeTimestamps"
                   checked={formValues.includeTimestamps}
                   onCheckedChange={(checked) => handleChange("includeTimestamps", !!checked)}
+                  className="border-white/30 data-[state=checked]:bg-primary-600"
                 />
-                <Label htmlFor="includeTimestamps" className="font-medium text-gray-700">
+                <Label htmlFor="includeTimestamps" className="font-medium text-white/70">
                   Include Timestamps
                 </Label>
               </div>
@@ -253,76 +254,71 @@ export function ExportData() {
 
       {/* Export History */}
       <div className="mt-8">
-        <h3 className="text-lg leading-6 font-medium text-gray-900">Export History</h3>
-        <div className="mt-2 flex flex-col">
-          <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
-            <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-              <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
-                {isLoading ? (
-                  <div className="flex justify-center py-8 bg-white">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  </div>
-                ) : (
-                  <table className="min-w-full divide-y divide-gray-300">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
-                          Export Date
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          File Size
-                        </th>
-                        <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
-                          Records
-                        </th>
-                        <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
-                          <span className="sr-only">Actions</span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                      {exportHistory && exportHistory.length > 0 ? (
-                        exportHistory.map((exportItem) => (
-                          <tr key={exportItem.id}>
-                            <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
-                              {formatDate(exportItem.createdAt)}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {formatFileSize(exportItem.size)}
-                            </td>
-                            <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
-                              {exportItem.records}
-                            </td>
-                            <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                              <Button
-                                variant="outline"
-                                className="text-primary-600 hover:text-primary-900"
-                                onClick={() => downloadExportMutation.mutate(exportItem.id)}
-                                disabled={downloadExportMutation.isPending}
-                              >
-                                {downloadExportMutation.isPending ? (
-                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                                ) : (
-                                  <Download className="h-4 w-4 mr-2" />
-                                )}
-                                Download
-                              </Button>
-                            </td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan={4} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
-                            No export history found. Generate an export to get started.
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-          </div>
+        <h2 className="text-xl font-semibold text-white mb-4">Export History</h2>
+        <div className="overflow-hidden shadow ring-1 ring-white/10 rounded-lg">
+          <table className="min-w-full divide-y divide-gray-700">
+            <thead className="bg-black/40">
+              <tr>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Export Date
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  File Size
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Records
+                </th>
+                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="bg-black/30 divide-y divide-gray-700">
+              {isLoading ? (
+                <tr>
+                  <td colSpan={4} className="px-6 py-4 text-center">
+                    <Loader2 className="h-5 w-5 animate-spin mx-auto text-primary/50" />
+                  </td>
+                </tr>
+              ) : exportHistory && exportHistory.length > 0 ? (
+                exportHistory.map((export_) => (
+                  <tr key={export_.id}>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
+                      {formatDate(export_.createdAt)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
+                      {formatFileSize(export_.size)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
+                      {export_.records}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="inline-flex items-center border-white/20 hover:bg-white/10"
+                        onClick={() => downloadExportMutation.mutate(export_.id)}
+                        disabled={downloadExportMutation.isPending}
+                      >
+                        {downloadExportMutation.isPending ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Download className="h-4 w-4 mr-1" />
+                        )}
+                        Download
+                      </Button>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={4} className="px-6 py-4 text-center text-white/70">
+                    No export history found. Generate an export to get started.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </>

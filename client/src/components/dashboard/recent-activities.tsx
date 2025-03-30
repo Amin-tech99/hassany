@@ -24,19 +24,19 @@ export function RecentActivities() {
   const getStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case "completed":
-        return <Badge className="bg-green-100 text-green-800 hover:bg-green-100">Completed</Badge>;
+        return <Badge className="bg-green-600 text-white hover:bg-green-700">Completed</Badge>;
       case "pending_review":
       case "pending review":
-        return <Badge className="bg-yellow-100 text-yellow-800 hover:bg-yellow-100">Pending Review</Badge>;
+        return <Badge className="bg-yellow-600 text-white hover:bg-yellow-700">Pending Review</Badge>;
       case "in_progress":
       case "in progress":
-        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-100">In Progress</Badge>;
+        return <Badge className="bg-blue-600 text-white hover:bg-blue-700">In Progress</Badge>;
       case "rejected":
       case "needs_revision":
       case "needs revision":
-        return <Badge className="bg-red-100 text-red-800 hover:bg-red-100">Needs Revision</Badge>;
+        return <Badge className="bg-red-600 text-white hover:bg-red-700">Needs Revision</Badge>;
       default:
-        return <Badge className="bg-gray-100 text-gray-800 hover:bg-gray-100">{status}</Badge>;
+        return <Badge className="bg-slate-600 text-white hover:bg-slate-700">{status}</Badge>;
     }
   };
 
@@ -72,10 +72,10 @@ export function RecentActivities() {
   if (isLoading) {
     return (
       <div className="align-middle min-w-full overflow-x-auto shadow overflow-hidden sm:rounded-lg">
-        <div className="px-6 py-3 bg-white">
-          <h2 className="text-lg font-medium text-gray-900">Recent Activities</h2>
+        <div className="px-6 py-3 bg-black/40 border border-white/10">
+          <h2 className="text-lg font-medium text-white">Recent Activities</h2>
         </div>
-        <div className="flex justify-center py-8">
+        <div className="flex justify-center py-8 bg-black/30">
           <Loader2 className="h-8 w-8 animate-spin text-primary" />
         </div>
       </div>
@@ -83,23 +83,23 @@ export function RecentActivities() {
   }
 
   return (
-    <div className="align-middle min-w-full overflow-x-auto shadow overflow-hidden sm:rounded-lg">
-      <h2 className="px-6 py-3 text-lg font-medium text-gray-900 bg-white">
+    <div className="align-middle min-w-full overflow-x-auto shadow overflow-hidden sm:rounded-lg border border-white/10">
+      <h2 className="px-6 py-3 text-lg font-medium text-white bg-black/40 border-b border-white/10">
         Recent Activities
       </h2>
-      <table className="min-w-full divide-y divide-gray-200">
+      <table className="min-w-full divide-y divide-gray-700">
         <thead>
-          <tr className="bg-gray-50">
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          <tr className="bg-black/40">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
               Task
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
               Type
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
               Status
             </th>
-            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
               Updated
             </th>
             <th scope="col" className="relative px-6 py-3">
@@ -107,26 +107,26 @@ export function RecentActivities() {
             </th>
           </tr>
         </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
+        <tbody className="bg-black/30 divide-y divide-gray-700">
           {recentActivities && recentActivities.length > 0 ? (
             recentActivities.map((activity) => (
               <tr key={activity.id}>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-white">
                   {activity.task}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
                   {activity.type}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm">
                   {getStatusBadge(activity.status)}
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-white/70">
                   {getTimeAgo(activity.updatedAt)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                   <Link 
                     to={getActionLink(activity)} 
-                    className="text-primary-600 hover:text-primary-900"
+                    className="text-primary-400 hover:text-primary-300"
                   >
                     {getActionText(activity)}
                   </Link>
@@ -135,7 +135,7 @@ export function RecentActivities() {
             ))
           ) : (
             <tr>
-              <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+              <td colSpan={5} className="px-6 py-4 whitespace-nowrap text-sm text-white/70 text-center">
                 No recent activities found.
               </td>
             </tr>
