@@ -10,14 +10,14 @@ export default function DashboardPage() {
 
   return (
     <MainLayout>
-      <div className="mx-auto px-4 sm:px-6 md:px-8">
-        <h1 className="text-2xl font-semibold text-white">Dashboard</h1>
+      <div className="max-w-full md:mx-auto px-2 sm:px-4 md:px-6">
+        <h1 className="text-xl md:text-2xl font-semibold text-white">Dashboard</h1>
         
         <div className="mt-4">
           <DashboardCards />
         </div>
 
-        <div className="mt-8">
+        <div className="mt-6 md:mt-8">
           <RecentActivities />
         </div>
       </div>

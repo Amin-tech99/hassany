@@ -25,23 +25,23 @@ function DashboardCard({
 }: DashboardCardProps) {
   return (
     <Card className={`overflow-hidden ${className}`}>
-      <CardContent className="p-6">
+      <CardContent className="p-4 sm:p-6">
         <div className="flex items-center">
-          <div className={`flex-shrink-0 rounded-md p-3 ${className}`}>
+          <div className={`flex-shrink-0 rounded-md p-2 sm:p-3 ${className}`}>
             {icon}
           </div>
-          <div className="ml-5 w-0 flex-1">
+          <div className="ml-3 sm:ml-5 w-0 flex-1">
             <dl>
-              <dt className="text-sm font-medium text-white/70 truncate">{title}</dt>
+              <dt className="text-xs sm:text-sm font-medium text-white/70 truncate">{title}</dt>
               <dd>
-                <div className="text-lg font-semibold text-white">{value}</div>
+                <div className="text-base sm:text-lg font-semibold text-white">{value}</div>
               </dd>
             </dl>
           </div>
         </div>
       </CardContent>
-      <CardFooter className="bg-black/50 px-6 py-4 border-t border-white/10">
-        <div className="text-sm">
+      <CardFooter className="bg-black/50 px-4 sm:px-6 py-3 sm:py-4 border-t border-white/10">
+        <div className="text-xs sm:text-sm">
           <Link to={linkHref} className="font-medium text-primary-400 hover:text-primary-300">
             {linkText}
             <span className="sr-only"> {title}</span>
@@ -65,12 +65,12 @@ export function DashboardCards() {
   
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {[1, 2, 3].map((i) => (
           <Card key={i} className="bg-black/30 overflow-hidden shadow">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-center h-20">
-                <Loader2 className="h-8 w-8 animate-spin text-primary/50" />
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-center justify-center h-16 sm:h-20">
+                <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-primary/50" />
               </div>
             </CardContent>
           </Card>
@@ -85,11 +85,11 @@ export function DashboardCards() {
   const pendingReview = taskSummary?.pendingReview || 0;
   
   return (
-    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:gap-5 sm:grid-cols-2 lg:grid-cols-3">
       <DashboardCard
         title="Assigned Tasks"
         value={assigned}
-        icon={<FileText className="h-6 w-6 text-primary-400" />}
+        icon={<FileText className="h-5 w-5 sm:h-6 sm:w-6 text-primary-400" />}
         linkText="View all tasks"
         linkHref="/transcriptions"
         className="bg-primary-900/30"
@@ -98,7 +98,7 @@ export function DashboardCards() {
       <DashboardCard
         title="Completed Tasks"
         value={completed}
-        icon={<CheckCircle className="h-6 w-6 text-green-400" />}
+        icon={<CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-400" />}
         linkText="View completed"
         linkHref="/transcriptions?status=completed"
         className="bg-green-900/30"
@@ -107,7 +107,7 @@ export function DashboardCards() {
       <DashboardCard
         title="Pending Review"
         value={pendingReview}
-        icon={<Clock className="h-6 w-6 text-yellow-400" />}
+        icon={<Clock className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-400" />}
         linkText="View pending reviews"
         linkHref="/transcriptions?status=review"
         className="bg-yellow-900/30"

@@ -42,7 +42,8 @@ const DnaBackground = () => {
   // Generate particles
   const generateParticles = () => {
     const particles = [];
-    const count = 30; // Reduced count for better performance on all pages
+    // Reduced particle count for better mobile performance
+    const count = window.innerWidth < 768 ? 15 : 30;
     
     for (let i = 0; i < count; i++) {
       const size = Math.random() * 3 + 1; // Smaller particles
@@ -91,13 +92,31 @@ const DnaBackground = () => {
 
 export function MainLayout({ children }: MainLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  // Add state to track screen size
+  const [isMobile, setIsMobile] = useState(false);
   
-  // Check for user preference in localStorage on mount
+  // Check for screen size and user preference in localStorage on mount
   useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    // Initial check
+    checkMobile();
+    
+    // Add resize listener
+    window.addEventListener('resize', checkMobile);
+    
+    // Load sidebar preference
     const savedState = localStorage.getItem('sidebar-collapsed');
     if (savedState !== null) {
       setSidebarCollapsed(savedState === 'true');
+    } else if (window.innerWidth < 1024) {
+      // Default to collapsed on smaller screens
+      setSidebarCollapsed(true);
     }
+    
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
   
   // Save preference when changed
@@ -113,14 +132,15 @@ export function MainLayout({ children }: MainLayoutProps) {
       
       <Sidebar collapsed={sidebarCollapsed} setCollapsed={handleCollapseChange} />
       
-      {/* Main Content Area */}
+      {/* Main Content Area - adjusted for mobile */}
       <div className={cn(
-        "transition-all duration-300 relative z-10",
+        "transition-all duration-300 relative z-10 pt-14", // Added padding-top for mobile menu
+        "md:pt-6", // Normal padding on desktop
         sidebarCollapsed ? "md:pl-20" : "md:pl-72"
       )}>
         {/* Main Content */}
-        <main className="py-6">
-          <div className="backdrop-blur-sm bg-black/10 rounded-xl border border-white/5 shadow-xl p-6">
+        <main className="py-4 md:py-6 px-4 md:px-6">
+          <div className="backdrop-blur-sm bg-black/10 rounded-xl border border-white/5 shadow-xl p-3 md:p-6">
             {children}
           </div>
         </main>
