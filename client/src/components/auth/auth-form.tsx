@@ -184,12 +184,13 @@ export function AuthForm() {
               <motion.div variants={inputVariants} custom={2} initial="hidden" animate="visible">
                 <Button 
                   type="submit" 
-                  className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-md transition-all shadow-lg hover:shadow-xl border-2 border-white text-lg font-bold" 
+                  className="w-full bg-black hover:bg-gray-900 text-white py-4 px-6 rounded-md transition-all shadow-lg hover:shadow-xl border-4 border-white text-xl font-bold relative outline outline-2 outline-black" 
                   disabled={loginMutation.isPending}
                 >
+                  <div className="absolute inset-0 bg-primary-500 rounded-md opacity-20"></div>
                   {loginMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                       Signing in...
                     </>
                   ) : (
@@ -322,12 +323,13 @@ export function AuthForm() {
               <motion.div variants={inputVariants} custom={4} initial="hidden" animate="visible">
                 <Button 
                   type="submit" 
-                  className="w-full bg-primary-600 hover:bg-primary-700 text-white py-3 px-6 rounded-md transition-all shadow-lg hover:shadow-xl border-2 border-white text-lg font-bold" 
+                  className="w-full bg-black hover:bg-gray-900 text-white py-4 px-6 rounded-md transition-all shadow-lg hover:shadow-xl border-4 border-white text-xl font-bold relative outline outline-2 outline-black" 
                   disabled={registerMutation.isPending}
                 >
+                  <div className="absolute inset-0 bg-primary-500 rounded-md opacity-20"></div>
                   {registerMutation.isPending ? (
                     <>
-                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      <Loader2 className="mr-2 h-6 w-6 animate-spin" />
                       Creating account...
                     </>
                   ) : (
