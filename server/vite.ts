@@ -26,7 +26,7 @@ export async function setupVite(app: Express, server: Server) {
   const serverOptions = {
     middlewareMode: true,
     hmr: { server },
-    allowedHosts: true,
+    allowedHosts: true as const,
   };
 
   const vite = await createViteServer({
@@ -79,10 +79,13 @@ export function serveStatic(app: Express) {
     );
   }
 
-  app.use(express.static(distPath));
+  app.use(express.static(distPath, {
+    index: false, // Don't automatically serve index.html for directory requests
+  }));
 
-  // fall through to index.html if the file doesn't exist
-  app.use("*", (_req, res) => {
+  // All routes not handled by API or static files should serve index.html for React Router
+  app.get("*", (_req, res) => {
+    console.log("Serving index.html for client-side routing");
     res.sendFile(path.resolve(distPath, "index.html"));
   });
 }
