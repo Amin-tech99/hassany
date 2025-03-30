@@ -4,13 +4,13 @@ import { AuthForm } from "@/components/auth/auth-form";
 import { useEffect } from "react";
 import { queryClient } from "@/lib/queryClient";
 import { motion } from "framer-motion";
-import { Mic, Headphones, FileText, Download, Wand2, ExternalLink, ChevronsRight } from "lucide-react";
+import { 
+  Mic, Headphones, FileText, Download, Wand2, ExternalLink, 
+  ChevronsRight, Braces, BarChart4, WavesIcon, FilesIcon
+} from "lucide-react";
 
 export default function AuthPage() {
-  const { user, isLoading, error } = useAuth();
-  
-  // Log authentication status for debugging
-  console.log("Auth status:", { user, isLoading, error });
+  const { user, isLoading } = useAuth();
   
   // Force refetch on auth page to ensure correct state
   useEffect(() => {
@@ -28,320 +28,197 @@ export default function AuthPage() {
     visible: {
       opacity: 1,
       transition: {
-        staggerChildren: 0.3
+        staggerChildren: 0.1,
+        delayChildren: 0.2
       }
     }
   };
 
   const itemVariants = {
-    hidden: { y: 20, opacity: 0 },
+    hidden: { opacity: 0, y: 20 },
     visible: {
-      y: 0,
       opacity: 1,
-      transition: {
-        duration: 0.5,
-        ease: "easeOut"
+      y: 0,
+      transition: { duration: 0.5 }
+    }
+  };
+
+  // DNA Animation component
+  const DnaBackground = () => {
+    // Generate DNA strands
+    const generateStrands = () => {
+      const strands = [];
+      for (let i = 0; i < 5; i++) {
+        strands.push(
+          <motion.div
+            key={`strand-${i}`}
+            className="absolute h-full"
+            style={{
+              left: `${15 + i * 20}%`,
+              width: '1px',
+              background: 'linear-gradient(to bottom, rgba(255,255,255,0.05), rgba(255,255,255,0.2), rgba(255,255,255,0.05))'
+            }}
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ 
+              height: '100%', 
+              opacity: 1,
+              filter: 'blur(0.5px)'
+            }}
+            transition={{ 
+              duration: 2,
+              delay: i * 0.2,
+              ease: "easeOut"
+            }}
+          />
+        );
       }
-    }
-  };
+      return strands;
+    };
 
-  const floatingAnimation = {
-    y: [0, -10, 0],
-    transition: {
-      duration: 3,
-      repeat: Infinity,
-      repeatType: "mirror" as "mirror",
-      ease: "easeInOut"
-    }
-  };
+    // Generate particles
+    const generateParticles = () => {
+      const particles = [];
+      const count = 40;
+      
+      for (let i = 0; i < count; i++) {
+        const size = Math.random() * 4 + 1;
+        const posX = Math.random() * 100;
+        const posY = Math.random() * 100;
+        const delay = Math.random() * 5;
+        const duration = Math.random() * 10 + 10;
+        
+        particles.push(
+          <motion.div
+            key={`particle-${i}`}
+            className="absolute rounded-full bg-white/10"
+            style={{
+              width: size,
+              height: size,
+              left: `${posX}%`,
+              top: `${posY}%`
+            }}
+            initial={{ opacity: 0 }}
+            animate={{ 
+              opacity: [0, 0.5, 0],
+              x: [0, Math.random() * 50 - 25],
+              y: [0, Math.random() * 50 - 25]
+            }}
+            transition={{ 
+              duration, 
+              delay,
+              repeat: Infinity,
+              repeatType: "reverse"
+            }}
+          />
+        );
+      }
+      
+      return particles;
+    };
 
-  const pulseAnimation = {
-    scale: [1, 1.05, 1],
-    transition: {
-      duration: 2, 
-      repeat: Infinity,
-      repeatType: "mirror" as "mirror"
-    }
+    return (
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {generateStrands()}
+        {generateParticles()}
+      </div>
+    );
   };
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
-      {/* Auth Form Column */}
-      <div className="flex-1 flex flex-col justify-center items-center p-8 bg-white">
-        <div className="w-full max-w-md space-y-8">
-          <div className="text-center">
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-              Hassaniya Arabic Transcription
-            </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Sign in to access the transcription platform
-            </p>
-          </div>
-          <AuthForm />
-          
-          <div className="flex justify-center mt-6 pt-6 border-t border-gray-200">
-            <a 
-              href="https://github.com/Amin-tech99/hassany" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-flex items-center text-sm text-gray-600 hover:text-primary-600 transition-colors"
-            >
-              <ExternalLink className="h-4 w-4 mr-1" />
-              Project Repository
-            </a>
-          </div>
-        </div>
-      </div>
+    <div className="min-h-screen w-full flex items-center justify-center relative overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
+      {/* DNA Background Animation */}
+      <DnaBackground />
 
-      {/* Hero/Info Column with Animations */}
-      <div className="flex-1 bg-gradient-to-r from-primary-700 to-primary-900 p-8 flex flex-col justify-center text-white hidden md:flex relative overflow-hidden">
-        {/* Animated black dots */}
-        <div className="absolute inset-0 z-0">
-          {Array.from({ length: 15 }).map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute bg-black rounded-full opacity-30"
-              style={{
-                top: `${Math.random() * 100}%`,
-                left: `${Math.random() * 100}%`,
-                width: `${Math.random() * 10 + 5}px`,
-                height: `${Math.random() * 10 + 5}px`
-              }}
-              animate={{
-                y: [0, Math.random() * 30 - 15, 0],
-                x: [0, Math.random() * 30 - 15, 0],
-                scale: [1, Math.random() * 1.5 + 0.5, 1]
-              }}
-              transition={{
-                duration: Math.random() * 5 + 3,
-                repeat: Infinity,
-                repeatType: "mirror" as "mirror",
-                delay: Math.random() * 2
-              }}
-            />
-          ))}
-        </div>
-
-        {/* Black interactive line connector */}
-        <motion.div 
-          className="absolute right-0 top-1/2 -translate-y-1/2 h-[80%] w-1 bg-black opacity-20 rounded-full"
-          animate={{ height: ["70%", "80%", "70%"] }}
-          transition={{ 
-            duration: 7, 
-            repeat: Infinity,
-            repeatType: "mirror" as "mirror"
-          }}
-        />
-
-        {/* Animated background circles */}
-        <motion.div 
-          className="absolute top-1/4 right-10 w-64 h-64 rounded-full bg-white opacity-5"
-          animate={{
-            scale: [1, 1.2, 1],
-            x: [0, 10, 0],
-            y: [0, -10, 0],
-          }}
-          transition={{ 
-            duration: 8, 
-            repeat: Infinity,
-            repeatType: "mirror" as "mirror"
-          }}
-        />
-        <motion.div 
-          className="absolute bottom-20 left-0 w-80 h-80 rounded-full bg-white opacity-5"
-          animate={{
-            scale: [1, 1.1, 1],
-            x: [0, -10, 0],
-            y: [0, 10, 0],
-          }}
-          transition={{ 
-            duration: 10, 
-            repeat: Infinity,
-            repeatType: "mirror" as "mirror",
-            delay: 0.5
-          }}
-        />
-
-        <motion.div
-          className="max-w-md mx-auto z-10"
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
-        >
-          <motion.h1 
-            className="text-4xl font-bold mb-8 text-white drop-shadow-md bg-black/40 px-4 py-2 rounded-lg inline-block"
-            variants={itemVariants}
-          >
-            Collaborative Speech-to-Text Transcription
-          </motion.h1>
-          
-          <motion.p 
-            className="text-lg mb-6 text-white drop-shadow-md bg-black/30 p-3 rounded-md"
-            variants={itemVariants}
-          >
-            A platform designed for teams to efficiently collect, process, and transcribe
-            Hassaniya Arabic audio data for machine learning model training.
-          </motion.p>
-          
-          {/* Platform highlights */}
+      {/* Content */}
+      <motion.div 
+        className="relative z-10 w-full max-w-4xl p-6 mx-auto grid md:grid-cols-2 gap-8 items-center"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* Left side - Branding */}
+        <motion.div className="text-white space-y-6">
           <motion.div 
-            className="mb-8 bg-black/20 backdrop-blur-sm p-4 rounded-lg border border-white/20 shadow-lg"
+            className="space-y-3"
             variants={itemVariants}
-            custom={1}
           >
-            <h3 className="text-lg font-semibold mb-3 flex items-center text-white drop-shadow-md">
-              <span className="bg-black p-1 rounded-md mr-2">
-                <Wand2 className="h-4 w-4 text-white" />
-              </span>
-              Platform Highlights
-            </h3>
-            <ul className="space-y-2 text-sm text-white">
-              <motion.li 
-                className="flex items-center" 
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                <span className="h-2 w-2 rounded-full bg-white mr-2 flex-shrink-0"></span>
-                Real-time collaboration between transcribers and reviewers
-              </motion.li>
-              <motion.li 
-                className="flex items-center"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.7 }}
-              >
-                <span className="h-2 w-2 rounded-full bg-white mr-2 flex-shrink-0"></span>
-                Dialects, accents, and cultural context preservation
-              </motion.li>
-              <motion.li 
-                className="flex items-center"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.9 }}
-              >
-                <span className="h-2 w-2 rounded-full bg-white mr-2 flex-shrink-0"></span>
-                Automated speech segmentation with manual adjustment tools
-              </motion.li>
-              <motion.li 
-                className="flex items-center"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 1.1 }}
-              >
-                <span className="h-2 w-2 rounded-full bg-white mr-2 flex-shrink-0"></span>
-                Customizable workflow stages for different project needs
-              </motion.li>
-            </ul>
+            <h1 className="text-4xl font-bold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-300">
+              Hassaniya Transcriber
+            </h1>
+            <p className="text-gray-300 text-lg leading-relaxed">
+              Modern platform for dialectal audio transcription, 
+              analysis, and machine learning data preparation.
+            </p>
           </motion.div>
 
-          <div className="space-y-8 relative">
-            {/* Floating icons on the side */}
-            <div className="absolute -left-16 top-0 bottom-0 flex flex-col justify-around">
-              <motion.div animate={floatingAnimation} className="bg-white/10 p-3 rounded-full">
-                <Mic className="h-8 w-8 text-white" />
-              </motion.div>
-              <motion.div animate={floatingAnimation} transition={{ delay: 0.5 }} className="bg-white/10 p-3 rounded-full">
-                <FileText className="h-8 w-8 text-white" />
-              </motion.div>
-              <motion.div animate={floatingAnimation} transition={{ delay: 1 }} className="bg-white/10 p-3 rounded-full">
-                <Wand2 className="h-8 w-8 text-white" />
-              </motion.div>
-            </div>
-
-            {/* Black corner accent */}
-            <motion.div 
-              className="absolute top-0 right-0 w-16 h-16" 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1 }}
-            >
-              <svg viewBox="0 0 100 100" className="w-full h-full">
-                <motion.path 
-                  d="M0,0 L100,0 L100,100" 
-                  stroke="black" 
-                  strokeWidth="8" 
-                  fill="none" 
-                  strokeLinecap="round"
-                  initial={{ pathLength: 0, opacity: 0.2 }}
-                  animate={{ pathLength: 1, opacity: 0.3 }}
-                  transition={{ duration: 2, repeat: Infinity, repeatType: "mirror" as "mirror" }}
-                />
-              </svg>
-            </motion.div>
-
-            <motion.div 
-              className="flex items-start p-4 rounded-lg bg-black/30 backdrop-blur-sm shadow-xl transform transition-all"
-              variants={itemVariants}
-              whileHover={{ scale: 1.03 }}
-            >
-              <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-primary-500 text-white mr-4">
-                <Headphones className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg mb-1 text-white">Streamlined Workflow</h3>
-                <p className="text-white">Upload, segment, transcribe, and review audio in one seamless process</p>
-            </div>
+          <motion.div 
+            className="border-t border-white/10 pt-6"
+            variants={itemVariants}
+          >
+            <h2 className="text-xl font-semibold mb-4">Platform Features</h2>
+            <div className="grid grid-cols-2 gap-4">
+              {/* Feature 1 */}
               <motion.div 
-                className="ml-2 w-2 h-2 bg-white rounded-full opacity-60"
-                animate={pulseAnimation}
-              />
-            </motion.div>
-            
-            <motion.div 
-              className="flex items-start p-4 rounded-lg bg-black/30 backdrop-blur-sm shadow-xl transform transition-all"
-              variants={itemVariants}
-              whileHover={{ scale: 1.03 }}
-            >
-              <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-primary-500 text-white mr-4">
-                <FileText className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg mb-1 text-white">Quality Control</h3>
-                <p className="text-white">Multi-stage review process ensures high-quality transcriptions</p>
-            </div>
-              <motion.div 
-                className="ml-2 w-2 h-2 bg-white rounded-full opacity-60"
-                animate={pulseAnimation}
-              />
-            </motion.div>
-            
-            <motion.div 
-              className="flex items-start p-4 rounded-lg bg-black/30 backdrop-blur-sm shadow-xl transform transition-all"
-              variants={itemVariants}
-              whileHover={{ scale: 1.03 }}
-            >
-              <div className="flex-shrink-0 h-10 w-10 flex items-center justify-center rounded-full bg-primary-500 text-white mr-4">
-                <Download className="h-5 w-5" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg mb-1 text-white">ML-Ready Export</h3>
-                <p className="text-white">Export data in Whisper-compatible format for AI model training</p>
-            </div>
-              <motion.div 
-                className="ml-2 w-2 h-2 bg-white rounded-full opacity-60"
-                animate={pulseAnimation}
-              />
-            </motion.div>
-
-            {/* Black interactive get started button */}
-            <motion.div
-              className="mt-12 text-center" 
-              variants={itemVariants}
-              custom={4}
-            >
-              <motion.button
-                className="px-6 py-3 bg-black text-white rounded-lg inline-flex items-center shadow-lg hover:bg-gray-900 transition-colors"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => document.querySelector('.TabsTrigger[value="register"]')?.dispatchEvent(new Event('click', { bubbles: true }))}
+                className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-colors"
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
               >
-                Get Started <ChevronsRight className="ml-2 h-5 w-5" />
-              </motion.button>
-            </motion.div>
-          </div>
+                <WavesIcon className="h-6 w-6 mb-2 text-primary-400" />
+                <h3 className="font-medium">Audio Processing</h3>
+                <p className="text-sm text-gray-400">Advanced segmentation and processing pipeline</p>
+              </motion.div>
+
+              {/* Feature 2 */}
+              <motion.div 
+                className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-colors"
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+              >
+                <Braces className="h-6 w-6 mb-2 text-primary-400" />
+                <h3 className="font-medium">Collaborative</h3>
+                <p className="text-sm text-gray-400">Multi-user transcription and review workflow</p>
+              </motion.div>
+
+              {/* Feature 3 */}
+              <motion.div 
+                className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-colors"
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+              >
+                <BarChart4 className="h-6 w-6 mb-2 text-primary-400" />
+                <h3 className="font-medium">Dialectal Intelligence</h3>
+                <p className="text-sm text-gray-400">Specialized for Hassaniya dialect transcription</p>
+              </motion.div>
+
+              {/* Feature 4 */}
+              <motion.div 
+                className="bg-white/5 backdrop-blur-sm rounded-lg p-4 border border-white/10 hover:bg-white/10 transition-colors"
+                whileHover={{ y: -5, transition: { duration: 0.2 } }}
+              >
+                <FilesIcon className="h-6 w-6 mb-2 text-primary-400" />
+                <h3 className="font-medium">ML-Ready Export</h3>
+                <p className="text-sm text-gray-400">Export data for machine learning tasks</p>
+              </motion.div>
+            </div>
+          </motion.div>
+
+          {/* Tech stack */}
+          <motion.div 
+            variants={itemVariants} 
+            className="pt-4 flex items-center gap-4 text-white/40 text-sm"
+          >
+            <span>Built with:</span>
+            <span className="px-2 py-1 bg-white/5 rounded-md">React</span>
+            <span className="px-2 py-1 bg-white/5 rounded-md">TypeScript</span>
+            <span className="px-2 py-1 bg-white/5 rounded-md">Node.js</span>
+          </motion.div>
         </motion.div>
-      </div>
+
+        {/* Right side - Auth Form */}
+        <motion.div 
+          variants={itemVariants}
+          className="backdrop-blur-md bg-black/20 p-6 rounded-xl border border-white/10 shadow-xl"
+        >
+          <AuthForm />
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

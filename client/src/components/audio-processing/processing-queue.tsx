@@ -1,12 +1,14 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { format } from "date-fns";
-import { Loader2, Download } from "lucide-react";
+import { Loader2, Download, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAudioProcessor } from "@/hooks/use-audio-processor";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 interface AudioFile {
   id: number;
@@ -242,28 +244,52 @@ export function ProcessingQueue() {
                                 )}
                               </Button>
                             ) : file.status.toLowerCase() === "processed" ? (
-                              <div className="flex justify-end space-x-2">
+                              <div className="flex space-x-2 mt-2">
                                 <Button
-                                  variant="outline"
                                   size="sm"
+                                  variant="outline"
                                   onClick={() => handleDownloadSegments(file.id, file.filename)}
-                                  aria-label={`Download segments for ${file.filename}`}
-                                  title="Download Segments"
                                   disabled={downloadingSegmentId === file.id}
+                                  className={cn(
+                                    "flex items-center text-sm px-3 py-1 h-8",
+                                    "bg-primary-50 text-primary-700 border-primary-200 hover:bg-primary-100",
+                                    "dark:bg-primary-900/20 dark:text-primary-400 dark:border-primary-800 dark:hover:bg-primary-900/30"
+                                  )}
                                 >
                                   {downloadingSegmentId === file.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <>
+                                      <div className="h-4 w-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin mr-2" />
+                                      <span>Downloading...</span>
+                                    </>
                                   ) : (
-                                    <Download className="h-4 w-4" />
+                                    <>
+                                      <Download className="h-4 w-4 mr-1" />
+                                      <span>Download Segments</span>
+                                    </>
                                   )}
                                 </Button>
+                                
                                 <Button
-                                  variant="link"
                                   size="sm"
-                                  className="text-primary-600 hover:text-primary-900 p-0 h-auto"
+                                  variant="outline"
                                   onClick={() => handleViewDetails(file.id)}
+                                  className={cn(
+                                    "flex items-center text-sm px-3 py-1 h-8 transition-all duration-300 group",
+                                    "bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100",
+                                    "dark:bg-slate-900/20 dark:text-slate-300 dark:border-slate-800 dark:hover:bg-slate-900/30"
+                                  )}
                                 >
-                                  View Details
+                                  <motion.span 
+                                    initial={{ scale: 1 }}
+                                    whileHover={{ scale: 1.15 }}
+                                    transition={{ duration: 0.2 }}
+                                    className="mr-1.5"
+                                  >
+                                    <ExternalLink className="h-4 w-4 group-hover:text-primary-500 transition-colors" />
+                                  </motion.span>
+                                  <span className="group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                                    View Details
+                                  </span>
                                 </Button>
                               </div>
                             ) : (
