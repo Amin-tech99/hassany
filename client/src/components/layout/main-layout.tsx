@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Outlet } from "react-router-dom";
 import { Sidebar } from "./sidebar";
 import { cn } from "@/lib/utils";
@@ -89,19 +89,40 @@ const DnaBackground = () => {
 
 export function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  
+  // Save preference when changed
+  const handleCollapseChange = (collapsed: boolean) => {
+    setSidebarCollapsed(collapsed);
+    localStorage.setItem('sidebar-collapsed', String(collapsed));
+  };
+
+  // Load preference on mount
+  useEffect(() => {
+    const savedState = localStorage.getItem('sidebar-collapsed');
+    if (savedState !== null) {
+      setSidebarCollapsed(savedState === 'true');
+    }
+  }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950">
-      <Sidebar collapsed={sidebarCollapsed} setCollapsed={setSidebarCollapsed} />
-      <main className={cn(
-        "relative min-h-screen transition-all duration-300 bg-red-500/10",
-        "md:pl-64",
-        sidebarCollapsed && "md:pl-16"
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white relative">
+      {/* DNA Background Animation with reduced opacity for better readability */}
+      <DnaBackground />
+      
+      <Sidebar collapsed={sidebarCollapsed} setCollapsed={handleCollapseChange} />
+      
+      {/* Main Content Area */}
+      <div className={cn(
+        "transition-all duration-300 relative z-10",
+        sidebarCollapsed ? "md:pl-16" : "md:pl-64"
       )}>
-        <div className="container mx-auto px-4 py-8 bg-blue-500/10">
-          <Outlet />
-        </div>
-      </main>
+        {/* Main Content */}
+        <main className="py-4 md:py-6 px-4 md:px-6">
+          <div className="backdrop-blur-sm bg-black/10 rounded-xl border border-white/5 shadow-xl p-3 md:p-6">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }
