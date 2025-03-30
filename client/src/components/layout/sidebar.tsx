@@ -200,26 +200,23 @@ export function Sidebar({ collapsed, setCollapsed }: SidebarProps) {
                   key={item.href} 
                   to={item.href}
                   onClick={() => setIsMobileMenuOpen(false)}
+                  className={cn(
+                    "flex items-center py-3 text-sm font-medium rounded-lg transition-all duration-200",
+                    collapsed ? "justify-center px-2" : "px-5",
+                    active 
+                      ? "bg-primary-600/30 text-white font-bold shadow-md border-l-4 border-primary-500" 
+                      : "text-slate-300 hover:bg-slate-700/60 hover:text-white hover:border-l-4 hover:border-primary-500/50"
+                  )}
+                  title={collapsed ? item.label : undefined}
                 >
-                  <a
-                    className={cn(
-                      "flex items-center py-3 text-sm font-medium rounded-lg transition-all duration-200",
-                      collapsed ? "justify-center px-2" : "px-5",
-                      active 
-                        ? "bg-primary-600/30 text-white font-bold shadow-md border-l-4 border-primary-500" 
-                        : "text-slate-300 hover:bg-slate-700/60 hover:text-white hover:border-l-4 hover:border-primary-500/50"
-                    )}
-                    title={collapsed ? item.label : undefined}
-                  >
-                    <span className={cn(
-                      item.color || "text-white",
-                      "transition-transform duration-200",
-                      active && "scale-110"
-                    )}>
-                      {item.icon}
-                    </span>
-                    {!collapsed && <span className="ml-3">{item.label}</span>}
-                  </a>
+                  <span className={cn(
+                    item.color || "text-white",
+                    "transition-transform duration-200",
+                    active && "scale-110"
+                  )}>
+                    {item.icon}
+                  </span>
+                  {!collapsed && <span className="ml-3">{item.label}</span>}
                 </Link>
               );
             })}

@@ -124,10 +124,11 @@ export function RecentActivities() {
                   {getTimeAgo(activity.updatedAt)}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <Link to={getActionLink(activity)}>
-                    <a className="text-primary-600 hover:text-primary-900">
-                      {getActionText(activity)}
-                    </a>
+                  <Link 
+                    to={getActionLink(activity)} 
+                    className="text-primary-600 hover:text-primary-900"
+                  >
+                    {getActionText(activity)}
                   </Link>
                 </td>
               </tr>

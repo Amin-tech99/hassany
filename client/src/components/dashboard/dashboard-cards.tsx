@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Headphones, FileText, User, Clock } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Headphones, CheckCircle, Clock, Loader2 } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/hooks/use-auth";
 
@@ -42,11 +42,9 @@ function DashboardCard({
       </CardContent>
       <CardFooter className="bg-gray-50 px-6 py-4">
         <div className="text-sm">
-          <Link to={linkHref}>
-            <a className="font-medium text-primary-600 hover:text-primary-500">
-              {linkText}
-              <span className="sr-only"> {title}</span>
-            </a>
+          <Link to={linkHref} className="font-medium text-primary-600 hover:text-primary-500">
+            {linkText}
+            <span className="sr-only"> {title}</span>
           </Link>
         </div>
       </CardFooter>
@@ -54,8 +52,14 @@ function DashboardCard({
   );
 }
 
+interface TaskSummary {
+  assigned: number;
+  completed: number;
+  pendingReview: number;
+}
+
 export function DashboardCards() {
-  const { data: taskSummary, isLoading } = useQuery({
+  const { data: taskSummary, isLoading } = useQuery<TaskSummary>({
     queryKey: ["/api/tasks/summary"],
   });
   
@@ -94,7 +98,7 @@ export function DashboardCards() {
       <DashboardCard
         title="Completed Tasks"
         value={completed}
-        icon={<CheckCircle2 className="h-6 w-6 text-green-600" />}
+        icon={<CheckCircle className="h-6 w-6 text-green-600" />}
         linkText="View completed"
         linkHref="/transcriptions?status=completed"
         className="bg-green-100"
@@ -111,7 +115,8 @@ export function DashboardCards() {
     </div>
   );
 }
-// Lucide icons used with the component
+
+// Lucide icon component
 function FileText(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
