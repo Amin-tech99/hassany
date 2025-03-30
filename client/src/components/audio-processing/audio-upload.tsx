@@ -84,10 +84,10 @@ export function AudioUpload() {
   };
 
   return (
-    <Card className="bg-white shadow">
+    <Card>
       <CardContent className="p-6">
-        <h3 className="text-lg leading-6 font-medium text-gray-900">Upload Audio File</h3>
-        <div className="mt-2 max-w-xl text-sm text-gray-500">
+        <h3 className="text-lg leading-6 font-medium text-white">Upload Audio File</h3>
+        <div className="mt-2 max-w-xl text-sm text-white/70">
           <p>
             Upload audio files in MP3, WAV, or FLAC format. Files will be automatically split into 10-second segments.
           </p>
@@ -100,7 +100,7 @@ export function AudioUpload() {
               type="file"
               id="audio-file"
               name="audio-file"
-              className="block w-full text-sm text-gray-900 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-50 file:text-primary-700 hover:file:bg-primary-100"
+              className="block w-full text-sm text-white file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary-900/40 file:text-primary-300 hover:file:bg-primary-800/60 bg-black/30 border-white/20"
               accept=".mp3,.wav,.flac"
               onChange={handleFileChange}
               disabled={isUploading}
@@ -128,7 +128,7 @@ export function AudioUpload() {
         
         {isUploading && (
           <div className="mt-4">
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-black/50 rounded-full h-2">
               <div 
                 className="bg-primary-600 h-2 rounded-full"
                 style={{ width: `${uploadProgress}%` }}

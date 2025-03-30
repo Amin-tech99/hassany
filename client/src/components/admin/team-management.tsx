@@ -103,8 +103,8 @@ export function TeamManagement() {
     <>
       <div className="sm:flex sm:items-center">
         <div className="sm:flex-auto">
-          <h1 className="text-2xl font-semibold text-gray-900">Team Management</h1>
-          <p className="mt-2 text-sm text-gray-700">
+          <h1 className="text-2xl font-semibold text-white">Team Management</h1>
+          <p className="mt-2 text-sm text-white/70">
             Manage team members and their roles in the transcription workflow.
           </p>
         </div>
@@ -118,28 +118,28 @@ export function TeamManagement() {
       <div className="mt-8 flex flex-col">
         <div className="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
           <div className="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
-            <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+            <div className="overflow-hidden shadow ring-1 ring-white/10 ring-opacity-5 md:rounded-lg">
               {isLoading ? (
-                <div className="flex justify-center py-8 bg-white">
+                <div className="flex justify-center py-8 bg-black/30">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
                 </div>
               ) : (
-                <table className="min-w-full divide-y divide-gray-300">
-                  <thead className="bg-gray-50">
+                <table className="min-w-full divide-y divide-gray-700">
+                  <thead className="bg-black/40">
                     <tr>
-                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-6">
+                      <th scope="col" className="py-3.5 pl-4 pr-3 text-left text-sm font-semibold text-white sm:pl-6">
                         Name
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
                         Email
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
                         Role
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
                         Tasks Completed
                       </th>
-                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-gray-900">
+                      <th scope="col" className="px-3 py-3.5 text-left text-sm font-semibold text-white">
                         Last Active
                       </th>
                       <th scope="col" className="relative py-3.5 pl-3 pr-4 sm:pr-6">
@@ -147,36 +147,36 @@ export function TeamManagement() {
                       </th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
+                  <tbody className="divide-y divide-gray-700 bg-black/30">
                     {teamMembers && teamMembers.length > 0 ? (
                       teamMembers.map((member) => (
                         <tr key={member.id}>
-                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-gray-900 sm:pl-6">
+                          <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-white sm:pl-6">
                             <div className="flex items-center">
                               <div className={`h-8 w-8 rounded-full ${getAvatarColor(member.id)} flex items-center justify-center text-white font-medium`}>
                                 {getInitials(member.fullName)}
                               </div>
                               <div className="ml-4">
-                                <div className="font-medium text-gray-900">{member.fullName}</div>
+                                <div className="font-medium text-white">{member.fullName}</div>
                               </div>
                             </div>
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-white/70">
                             {member.username}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-white/70">
                             {formatRole(member.role)}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-white/70">
                             {member.tasksCompleted}
                           </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-gray-500">
+                          <td className="whitespace-nowrap px-3 py-4 text-sm text-white/70">
                             {formatTimeAgo(member.lastActive)}
                           </td>
                           <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
                             <Button
                               variant="link"
-                              className="text-primary-600 hover:text-primary-900"
+                              className="text-primary-400 hover:text-primary-300"
                               onClick={() => handleEditUser(member.id)}
                             >
                               Edit
@@ -187,7 +187,7 @@ export function TeamManagement() {
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={6} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-center">
+                        <td colSpan={6} className="px-6 py-4 whitespace-nowrap text-sm text-white/70 text-center">
                           No team members found. Add a user to get started.
                         </td>
                       </tr>

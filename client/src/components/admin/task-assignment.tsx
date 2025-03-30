@@ -174,7 +174,7 @@ export function TaskAssignment() {
           <div>
             <div className="flex justify-between items-center mb-4">
               <div className="flex items-center space-x-2">
-                <h3 className="text-lg font-medium">Available Segments</h3>
+                <h3 className="text-lg font-medium text-white">Available Segments</h3>
                 {availableSegments && availableSegments.length > 0 && (
                   <Button 
                     variant="outline" 
@@ -185,7 +185,7 @@ export function TaskAssignment() {
                   </Button>
                 )}
                 {selectedSegments.length > 0 && (
-                  <span className="text-sm text-gray-500">
+                  <span className="text-sm text-white/70">
                     {selectedSegments.length} selected
                   </span>
                 )}
@@ -195,12 +195,12 @@ export function TaskAssignment() {
                   disabled={selectedSegments.length === 0 || assignMutation.isPending} 
                   onValueChange={handleUserChange}
                 >
-                  <SelectTrigger className="w-[200px]">
+                  <SelectTrigger className="w-[200px] bg-black/30 border-white/20 text-white">
                     <SelectValue placeholder="Select transcriber" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="bg-black/90 border-white/20 text-white">
                     {users?.map(user => (
-                      <SelectItem key={user.id} value={user.id.toString()}>
+                      <SelectItem key={user.id} value={user.id.toString()} className="text-white hover:bg-white/10">
                         {user.fullName} ({user.role})
                       </SelectItem>
                     ))}
@@ -218,14 +218,14 @@ export function TaskAssignment() {
               </div>
             </div>
 
-            <div className="border rounded-md">
+            <div className="border border-white/10 rounded-md bg-black/20">
               <Table>
-                <TableHeader>
+                <TableHeader className="bg-black/40">
                   <TableRow>
-                    <TableHead className="w-12"></TableHead>
-                    <TableHead>Segment ID</TableHead>
-                    <TableHead>Duration</TableHead>
-                    <TableHead>Created</TableHead>
+                    <TableHead className="w-12 text-white"></TableHead>
+                    <TableHead className="text-white">Segment ID</TableHead>
+                    <TableHead className="text-white">Duration</TableHead>
+                    <TableHead className="text-white">Created</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -233,7 +233,7 @@ export function TaskAssignment() {
                     availableSegments.map((segment) => (
                       <TableRow 
                         key={segment.id}
-                        className={selectedSegments.includes(segment.id) ? "bg-slate-100" : ""}
+                        className={selectedSegments.includes(segment.id) ? "bg-primary-900/30" : ""}
                         onClick={() => handleSegmentSelect(segment.id)}
                       >
                         <TableCell>
@@ -241,18 +241,18 @@ export function TaskAssignment() {
                             type="checkbox" 
                             checked={selectedSegments.includes(segment.id)}
                             onChange={() => {}}
-                            className="h-4 w-4 text-primary border-gray-300 focus:ring-primary"
+                            className="h-4 w-4 text-primary border-white/30 focus:ring-primary bg-black/30"
                           />
                         </TableCell>
-                        <TableCell>Audio Segment {segment.id}</TableCell>
-                        <TableCell>{formatDuration(segment.duration)}</TableCell>
-                        <TableCell>{new Date(segment.createdAt).toLocaleString()}</TableCell>
+                        <TableCell className="text-white/90">Audio Segment {segment.id}</TableCell>
+                        <TableCell className="text-white/90">{formatDuration(segment.duration)}</TableCell>
+                        <TableCell className="text-white/90">{new Date(segment.createdAt).toLocaleString()}</TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={4} className="text-center py-6 text-gray-500">
-                        No available segments to assign
+                      <TableCell colSpan={4} className="text-center py-4 text-white/70">
+                        No available segments to assign. Process audio files to generate segments.
                       </TableCell>
                     </TableRow>
                   )}
