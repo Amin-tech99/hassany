@@ -1,7 +1,7 @@
 import { MainLayout } from "@/components/layout/main-layout";
 import { AudioUpload } from "@/components/audio-processing/audio-upload";
 import { ProcessingQueue } from "@/components/audio-processing/processing-queue";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { ChevronLeft, Download, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 interface AudioFileDetails {
   id: number;
@@ -30,7 +30,7 @@ interface AudioFileDetails {
 }
 
 export default function AudioProcessingPage() {
-  const searchParams = useSearchParams();
+  const [searchParams] = useSearchParams();
   const fileId = searchParams.get("file");
   const [downloadingSegmentId, setDownloadingSegmentId] = useState<number | null>(null);
   const { toast } = useToast();
@@ -181,7 +181,7 @@ export default function AudioProcessingPage() {
             <div className="sm:flex sm:items-center mb-6">
               <div className="sm:flex-auto">
                 <div className="flex items-center gap-3">
-                  <Link href="/audio-processing">
+                  <Link to="/audio-processing">
                     <Button variant="ghost" size="sm" className="flex items-center gap-1">
                       <ChevronLeft className="h-4 w-4" />
                       Back to Processing Queue
