@@ -142,7 +142,7 @@ export function AuthForm() {
             "border-none hover:bg-white/10"
           )}
         >
-          <User className="h-4 w-4 mr-2" />
+          <User className="h-4 w-4 mr-2 text-white" />
           <span>Login</span>
         </TabsTrigger>
         <TabsTrigger 
@@ -153,7 +153,7 @@ export function AuthForm() {
             "border-none hover:bg-white/10"
           )}
         >
-          <UserCheck className="h-4 w-4 mr-2" />
+          <UserCheck className="h-4 w-4 mr-2 text-white" />
           <span>Register</span>
         </TabsTrigger>
       </TabsList>

@@ -66,7 +66,7 @@ function NavItem({
                   "flex h-8 w-8 items-center justify-center rounded-md border",
                   isActive
                     ? "border-primary-200 bg-primary-50 text-primary-600 dark:border-primary-950 dark:bg-primary-950/50 dark:text-primary-400"
-                    : "border-transparent bg-transparent",
+                    : "border-transparent bg-transparent text-white",
                   isAction && "border-red-200 bg-red-50 text-red-600 dark:border-red-950 dark:bg-red-950/50 dark:text-red-400"
                 )}
               >
@@ -93,7 +93,7 @@ function NavItem({
                   "flex h-8 w-8 items-center justify-center rounded-md border",
                   isActive
                     ? "border-primary-200 bg-primary-50 text-primary-600 dark:border-primary-950 dark:bg-primary-950/50 dark:text-primary-400"
-                    : "border-transparent bg-transparent",
+                    : "border-transparent bg-transparent text-white",
                   isAction && "border-red-200 bg-red-50 text-red-600 dark:border-red-950 dark:bg-red-950/50 dark:text-red-400"
                 )}
               >
@@ -154,15 +154,6 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
       collapsed ? "w-16" : "w-64"
     )}>
       <div className="h-16 border-b border-slate-800 flex items-center px-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setCollapsed(!collapsed)}
-          className="absolute right-2 top-3 lg:hidden"
-        >
-          {collapsed ? "→" : "←"}
-        </Button>
-        
         {!collapsed && (
           <motion.div 
             initial={{ opacity: 0 }} 
@@ -181,21 +172,21 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
         <nav className={cn("flex flex-col gap-1", collapsed ? "px-2" : "px-3")}>
           <NavItem
             to="/"
-            icon={<Home className="h-5 w-5" />}
+            icon={<Home className="h-5 w-5 text-white" />}
             label="Dashboard"
             isActive={isPathActive("/")}
           />
           
           <NavItem
-            to="/audio"
-            icon={<ListMusic className="h-5 w-5" />}
+            to="/audio-processing"
+            icon={<ListMusic className="h-5 w-5 text-white" />}
             label="Audio Processing"
-            isActive={isPathActive("/audio")}
+            isActive={isPathActive("/audio-processing")}
           />
           
           <NavItem
             to="/transcriptions"
-            icon={<FileText className="h-5 w-5" />}
+            icon={<FileText className="h-5 w-5 text-white" />}
             label="Transcription"
             isActive={isPathActive("/transcriptions")}
           />
@@ -208,30 +199,23 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
               
               <NavItem
                 to="/export"
-                icon={<FolderArchive className="h-5 w-5" />}
+                icon={<FolderArchive className="h-5 w-5 text-white" />}
                 label="Export Data"
                 isActive={isPathActive("/export")}
               />
               
               <NavItem
-                to="/users"
-                icon={<Users className="h-5 w-5" />}
+                to="/team"
+                icon={<Users className="h-5 w-5 text-white" />}
                 label="Manage Users"
-                isActive={isPathActive("/users")}
-              />
-              
-              <NavItem
-                to="/reports"
-                icon={<BookText className="h-5 w-5" />}
-                label="Reports"
-                isActive={isPathActive("/reports")}
+                isActive={isPathActive("/team")}
               />
               
               <NavItem
                 onClick={handleCleanupStorage}
                 icon={cleanupLoading ? 
                   <div className="h-5 w-5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" /> : 
-                  <Trash2 className="h-5 w-5" />
+                  <Trash2 className="h-5 w-5 text-white" />
                 }
                 label="Cleanup Storage"
                 isAction={true}
@@ -268,7 +252,7 @@ export function Sidebar({ collapsed, setCollapsed }: { collapsed: boolean, setCo
         <div className="grid grid-cols-1 gap-2">
           <NavItem
             to="/settings"
-            icon={<Settings className="h-5 w-5" />}
+            icon={<Settings className="h-5 w-5 text-white" />}
             label="Settings"
             isActive={isPathActive("/settings")}
           />
