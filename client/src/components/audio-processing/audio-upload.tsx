@@ -39,12 +39,12 @@ export function AudioUpload() {
       return;
     }
     
-    // Validate file size (max 50MB)
-    const maxSize = 50 * 1024 * 1024; // 50MB in bytes
+    // Validate file size (max 200MB)
+    const maxSize = 200 * 1024 * 1024; // 200MB in bytes
     if (file.size > maxSize) {
       toast({
         title: "File too large",
-        description: "Please upload an audio file smaller than 50MB.",
+        description: "Please upload an audio file smaller than 200MB.",
         variant: "destructive",
       });
       
@@ -89,7 +89,7 @@ export function AudioUpload() {
         <h3 className="text-lg leading-6 font-medium text-white">Upload Audio File</h3>
         <div className="mt-2 max-w-xl text-sm text-white/70">
           <p>
-            Upload audio files in MP3, WAV, or FLAC format. Files will be automatically split into 10-second segments.
+            Upload audio files in MP3, WAV, or FLAC format (max 200MB). Files will be automatically split into 10-second segments.
           </p>
         </div>
         
