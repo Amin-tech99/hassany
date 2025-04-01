@@ -10,9 +10,10 @@ A collaborative platform for transcribing Hassaniya audio recordings.
 - Admin review and verification
 - Export of verified transcriptions
 
-## Deployment to Render
+## Deployment Options
 
-### Using the Dashboard
+### Deployment to Render
+#### Using the Dashboard
 
 1. Create a new Render account or log in to your existing account.
 2. Click "New +" and select "Web Service".
@@ -25,6 +26,23 @@ A collaborative platform for transcribing Hassaniya audio recordings.
 5. Add environment variables:
    - `NODE_ENV`: production
 6. Click "Create Web Service".
+
+### Deployment to Railway
+
+1. Create a Railway account or log in to your existing account.
+2. Click "New Project" and select "Deploy from GitHub repo".
+3. Connect your GitHub repository.
+4. Railway will automatically detect your Node.js project using the `railway.toml` configuration.
+5. Add environment variables:
+   - `NODE_ENV`: production
+   - `JWT_SECRET`: (a secure random string)
+   - `DATABASE_URL`: (if using a database)
+6. Set up persistent storage:
+   - Go to the "Volumes" tab
+   - Create a volume with mount path: `/opt/render/project/src/uploads`
+   - Set size to 5GB (or as needed)
+
+For detailed Railway deployment instructions, see [RAILWAY_DEPLOYMENT.md](./RAILWAY_DEPLOYMENT.md).
 
 ### Using the render.yaml
 
@@ -60,4 +78,4 @@ Alternatively, you can use the provided `render.yaml` file:
 ## Requirements
 
 - Node.js 18+
-- FFMPEG for audio processing 
+- FFMPEG for audio processing

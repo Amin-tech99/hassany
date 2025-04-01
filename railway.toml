@@ -1,0 +1,32 @@
+[build]
+  builder = "nixpacks"
+  buildCommand = "npm install && npm run build"
+
+[deploy]
+  startCommand = "npm start"
+  healthcheckPath = "/api/user"
+  healthcheckTimeout = 300
+
+[nixpacks]
+  features = ["nodejs", "ffmpeg"]
+
+[[services]]
+  internal_port = 3000
+  auto_deploy = true
+
+  [services.concurrency]
+    hard_limit = 25
+    soft_limit = 20
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 80
+    force_https = true
+
+  [[services.ports]]
+    handlers = ["tls", "http"]
+    port = 443
+
+  [services.persistence]
+    directory = "/opt/render/project/src/uploads"
+    size = 5
