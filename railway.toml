@@ -14,7 +14,9 @@ cmds = [
 
 [phases.install]
 cmds = [
-  "npm install",
+  "npm config set registry https://registry.npmjs.org/",
+  "npm config set strict-ssl false",
+  "npm install --no-audit --no-fund --prefer-offline",
   "pip3 install -r requirements.txt"
 ]
 
