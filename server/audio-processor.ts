@@ -47,30 +47,10 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
       throw new Error(`Original file access error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
     
-    // Verify FFMPEG is installed and working
-    try {
-      console.log(`Checking FFMPEG installation...`);
-      const { stdout: ffmpegVersion } = await execAsync('ffmpeg -version');
-      console.log(`FFMPEG version: ${ffmpegVersion.split('\n')[0]}`);
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      console.error(`FFMPEG not found or not working: ${errorMessage}`);
-      throw new Error(`FFMPEG installation issue: ${errorMessage}`);
-    }
-    
-    // Get audio duration using ffprobe
-    const durationCommand = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${audioFile.originalPath}"`;
-    console.log(`Running duration command: ${durationCommand}`);
+    // We'll get the duration from the VAD processor results instead of using ffprobe
+    console.log('Preparing for VAD processing...');
     
     try {
-      const { stdout: durationOutput } = await execAsync(durationCommand);
-      const duration = parseFloat(durationOutput.trim()) * 1000; // Convert to milliseconds
-      
-      // Update audio file with duration
-      await storage.updateAudioFile(audioFile.id, {
-        duration: Math.round(duration),
-      });
-      
       // Create a directory for this file's segments
       const fileSegmentsDir = path.join(segmentsDir, `file_${audioFile.id}`);
       await fs.mkdir(fileSegmentsDir, { recursive: true });
@@ -120,6 +100,14 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
         if (vadResponse.status === 'error' || !vadResponse.segments) {
           throw new Error(vadResponse.error || 'Unknown VAD processing error');
         }
+        
+        // Calculate total duration from all segments
+        const totalDuration = vadResponse.segments.reduce((total, segment) => total + segment.duration, 0);
+        
+        // Update audio file with total duration
+        await storage.updateAudioFile(audioFile.id, {
+          duration: Math.round(totalDuration)
+        });
         
         // Process each segment detected by VAD
         for (const [index, segment] of vadResponse.segments.entries()) {
