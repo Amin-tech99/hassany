@@ -9,6 +9,10 @@
 
 [nixpacks]
   features = ["nodejs", "ffmpeg"]
+  nixPackages = ["ffmpeg"]
+
+[build.env]
+  NIXPACKS_FFMPEG_VERSION = "latest"
 
 [[services]]
   internal_port = 3000
@@ -28,5 +32,5 @@
     port = 443
 
   [services.persistence]
-    directory = "/opt/render/project/src/uploads"
+    directory = "/data/uploads"
     size = 5

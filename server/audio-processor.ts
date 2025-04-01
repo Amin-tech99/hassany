@@ -41,6 +41,11 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`FFMPEG not found or not working: ${errorMessage}`);
+      // Update the audio file with the error message
+      await storage.updateAudioFile(audioFile.id, {
+        status: "error",
+        error: `FFMPEG installation issue: ${errorMessage}`,
+      });
       throw new Error(`FFMPEG installation issue: ${errorMessage}`);
     }
     
@@ -97,10 +102,22 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
         console.log(`Running ffmpeg command for segment ${i+1}: ${ffmpegCommand}`);
         
         try {
-          await execAsync(ffmpegCommand);
+          console.log(`Executing ffmpeg command for segment ${i+1}...`);
+          const { stderr } = await execAsync(ffmpegCommand);
+          
+          // Check if the segment file was created successfully
+          try {
+            await fs.access(segmentPath, fs.constants.R_OK);
+            console.log(`Segment file created successfully: ${segmentPath}`);
+          } catch (accessError) {
+            console.error(`Failed to create segment file: ${segmentPath}`);
+            console.error(`FFMPEG stderr: ${stderr}`);
+            throw new Error(`Failed to create segment file: ${accessError instanceof Error ? accessError.message : 'Unknown error'}`);
+          }
           
           // Get segment duration
           const segDurationCommand = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${segmentPath}"`;
+          console.log(`Running duration command for segment: ${segDurationCommand}`);
           const { stdout: segDurationOutput } = await execAsync(segDurationCommand);
           const segmentDuration = parseFloat(segDurationOutput.trim()) * 1000; // Convert to milliseconds
           
@@ -125,6 +142,11 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
           });
         } catch (segmentError) {
           console.error(`Error processing segment ${i+1}: ${segmentError}`);
+          // Update the audio file with the specific segment error
+          await storage.updateAudioFile(audioFile.id, {
+            status: "error",
+            error: `Error processing segment ${i+1}: ${segmentError instanceof Error ? segmentError.message : 'Unknown error'}`,
+          });
           throw segmentError;
         }
       }
