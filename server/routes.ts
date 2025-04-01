@@ -68,6 +68,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Initialize directories
   await ensureDirectoriesExist();
 
+  // Health check endpoint - no authentication required
+  app.get("/api/health", (req, res) => {
+    res.status(200).json({ status: "ok", message: "Service is running" });
+  });
+
   // Set up authentication routes
   setupAuth(app);
 

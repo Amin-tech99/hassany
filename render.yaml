@@ -12,7 +12,7 @@ services:
         value: production
       - key: PORT
         value: "10000"
-    healthCheckPath: /api/user
+    healthCheckPath: /api/health
     plan: starter
     scaling:
       minInstances: 1
@@ -22,4 +22,4 @@ services:
       mountPath: /opt/render/project/src/uploads
       sizeGB: 5
     packages:
-      - ffmpeg 
+      - ffmpeg
