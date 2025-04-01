@@ -102,8 +102,20 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
       console.log(`Running VAD processor: ${vadCommand}`);
       
       try {
-        const { stdout } = await execAsync(vadCommand);
-        const vadResponse: VadResponse = JSON.parse(stdout);
+        const { stdout, stderr } = await execAsync(vadCommand);
+        
+        // Log any stderr output for debugging
+        if (stderr) {
+          console.log('VAD processor stderr:', stderr);
+        }
+        
+        let vadResponse: VadResponse;
+        try {
+          vadResponse = JSON.parse(stdout);
+        } catch (parseError) {
+          console.error('Error parsing VAD response. Raw output:', stdout);
+          throw new Error(`Failed to parse VAD response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+        }
         
         if (vadResponse.status === 'error' || !vadResponse.segments) {
           throw new Error(vadResponse.error || 'Unknown VAD processing error');

@@ -6,10 +6,32 @@ from pathlib import Path
 
 def process_audio(input_path, output_dir):
     try:
-        # Load the VAD model
-        vad_model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad',
-                                        model='silero_vad',
-                                        force_reload=True)
+        # Verify input file exists
+        if not Path(input_path).is_file():
+            raise FileNotFoundError(f"Input audio file not found: {input_path}")
+
+        # Ensure output directory exists
+        output_path = Path(output_dir)
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # Load the VAD model with caching enabled
+        print("Loading VAD model...")
+        try:
+            vad_model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad',
+                                            model='silero_vad',
+                                            force_reload=False)
+            print("Successfully loaded VAD model from online repository")
+        except Exception as model_error:
+            print(f"Error loading model from online repository: {str(model_error)}")
+            print("Attempting to load from local cache...")
+            try:
+                vad_model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad',
+                                                model='silero_vad',
+                                                force_reload=False,
+                                                trust_repo=True)
+                print("Successfully loaded VAD model from local cache")
+            except Exception as fallback_error:
+                raise Exception(f"Failed to load VAD model (both online and cache): {str(fallback_error)}")
         (get_speech_timestamps, save_audio, read_audio, _, _) = utils
 
         # Read the audio file
@@ -48,9 +70,11 @@ def process_audio(input_path, output_dir):
         })
 
     except Exception as e:
+        error_message = str(e)
+        print(f"Error in process_audio: {error_message}")
         return json.dumps({
             'status': 'error',
-            'error': str(e)
+            'error': error_message
         })
 
 if __name__ == '__main__':
