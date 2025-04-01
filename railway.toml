@@ -8,11 +8,12 @@
   healthcheckTimeout = 300
 
 [nixpacks]
-  features = ["nodejs", "ffmpeg"]
+  features = ["nodejs"]
   nixPackages = ["ffmpeg"]
 
 [build.env]
-  NIXPACKS_FFMPEG_VERSION = "latest"
+  NIXPACKS_FFMPEG_VERSION = "5.0"
+  PATH = "/nix/var/nix/profiles/default/bin:$PATH"
 
 [[services]]
   internal_port = 3000
