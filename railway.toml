@@ -16,7 +16,8 @@ cmds = [
 cmds = [
   "npm config set registry https://registry.npmjs.org/",
   "npm config set strict-ssl false",
-  "npm install --no-audit --no-fund --prefer-offline",
+  "npm config set legacy-peer-deps true",
+  "npm install --no-audit --no-fund --prefer-offline --legacy-peer-deps --force",
   "pip3 install -r requirements.txt"
 ]
 
