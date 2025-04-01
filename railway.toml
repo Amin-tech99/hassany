@@ -1,37 +1,28 @@
 [build]
-  builder = "nixpacks"
-  buildCommand = "npm install && npm run build"
+builder = "nixpacks"
 
 [deploy]
-  startCommand = "npm start"
-  healthcheckPath = "/api/health"
-  healthcheckTimeout = 300
+startCommand = "npm run start"
+healthcheckPath = "/"
+healthcheckTimeout = 100
 
-[nixpacks]
-  features = ["nodejs"]
-  nixPackages = ["ffmpeg"]
+[phases.setup]
+cmds = [
+  "apt-get update",
+  "apt-get install -y ffmpeg python3 python3-pip"
+]
 
-[build.env]
-  NIXPACKS_FFMPEG_VERSION = "5.0"
-  PATH = "/nix/var/nix/profiles/default/bin:$PATH"
+[phases.install]
+cmds = [
+  "npm install",
+  "pip3 install -r requirements.txt"
+]
 
-[[services]]
-  internal_port = 3000
-  auto_deploy = true
+[phases.build]
+cmds = [
+  "npm run build"
+]
 
-  [services.concurrency]
-    hard_limit = 25
-    soft_limit = 20
-
-  [[services.ports]]
-    handlers = ["http"]
-    port = 80
-    force_https = true
-
-  [[services.ports]]
-    handlers = ["tls", "http"]
-    port = 443
-
-  [services.persistence]
-    directory = "/data/uploads"
-    size = 5
+[mounts]
+source = "/data"
+destination = "/app/uploads"

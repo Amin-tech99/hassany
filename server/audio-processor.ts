@@ -7,11 +7,25 @@ import { IStorage } from "./storage";
 
 const execAsync = promisify(exec);
 
+interface VadSegment {
+  index: number;
+  path: string;
+  start_time: number;
+  end_time: number;
+  duration: number;
+}
+
+interface VadResponse {
+  status: 'success' | 'error';
+  segments?: VadSegment[];
+  error?: string;
+}
+
 // Map to track processing status
 const processingFiles = new Map<number, boolean>();
 
 /**
- * Process an audio file by splitting it into 10-second segments and removing silence
+ * Process an audio file using Silero VAD to detect speech segments
  */
 export async function processAudio(audioFile: AudioFile, storage: IStorage): Promise<void> {
   try {
@@ -41,11 +55,6 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
       console.error(`FFMPEG not found or not working: ${errorMessage}`);
-      // Update the audio file with the error message
-      await storage.updateAudioFile(audioFile.id, {
-        status: "error",
-        error: `FFMPEG installation issue: ${errorMessage}`,
-      });
       throw new Error(`FFMPEG installation issue: ${errorMessage}`);
     }
     
@@ -61,10 +70,6 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
       await storage.updateAudioFile(audioFile.id, {
         duration: Math.round(duration),
       });
-      
-      // Split audio into 10-second segments
-      const segmentLength = 10000; // 10 seconds in milliseconds
-      const numberOfSegments = Math.ceil(duration / segmentLength);
       
       // Create a directory for this file's segments
       const fileSegmentsDir = path.join(segmentsDir, `file_${audioFile.id}`);
@@ -86,48 +91,33 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
         processedPath: fileSegmentsDir,
       });
       
-      // Process each segment
-      for (let i = 0; i < numberOfSegments; i++) {
-        // Check if processing was cancelled
-        if (!processingFiles.get(audioFile.id)) {
-          console.log(`Processing of file ${audioFile.id} was cancelled.`);
-          return;
+      // Check if processing was cancelled
+      if (!processingFiles.get(audioFile.id)) {
+        console.log(`Processing of file ${audioFile.id} was cancelled.`);
+        return;
+      }
+      
+      // Run the Python VAD processor
+      const vadCommand = `python "${path.join(process.cwd(), 'server', 'vad_processor.py')}" "${audioFile.originalPath}" "${fileSegmentsDir}"`;
+      console.log(`Running VAD processor: ${vadCommand}`);
+      
+      try {
+        const { stdout } = await execAsync(vadCommand);
+        const vadResponse: VadResponse = JSON.parse(stdout);
+        
+        if (vadResponse.status === 'error' || !vadResponse.segments) {
+          throw new Error(vadResponse.error || 'Unknown VAD processing error');
         }
         
-        const startTime = i * segmentLength / 1000; // In seconds for ffmpeg
-        const segmentPath = path.join(fileSegmentsDir, `segment_${i + 1}.mp3`);
-        
-        // Use ffmpeg to extract segment and remove silence
-        const ffmpegCommand = `ffmpeg -y -i "${audioFile.originalPath}" -ss ${startTime} -t 10 -c:a mp3 -q:a 2 "${segmentPath}"`;
-        console.log(`Running ffmpeg command for segment ${i+1}: ${ffmpegCommand}`);
-        
-        try {
-          console.log(`Executing ffmpeg command for segment ${i+1}...`);
-          const { stderr } = await execAsync(ffmpegCommand);
-          
-          // Check if the segment file was created successfully
-          try {
-            await fs.access(segmentPath, fs.constants.R_OK);
-            console.log(`Segment file created successfully: ${segmentPath}`);
-          } catch (accessError) {
-            console.error(`Failed to create segment file: ${segmentPath}`);
-            console.error(`FFMPEG stderr: ${stderr}`);
-            throw new Error(`Failed to create segment file: ${accessError instanceof Error ? accessError.message : 'Unknown error'}`);
-          }
-          
-          // Get segment duration
-          const segDurationCommand = `ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 "${segmentPath}"`;
-          console.log(`Running duration command for segment: ${segDurationCommand}`);
-          const { stdout: segDurationOutput } = await execAsync(segDurationCommand);
-          const segmentDuration = parseFloat(segDurationOutput.trim()) * 1000; // Convert to milliseconds
-          
+        // Process each segment detected by VAD
+        for (const [index, segment] of vadResponse.segments.entries()) {
           // Create segment in database
           const segmentData: InsertAudioSegment = {
             audioFileId: audioFile.id,
-            segmentPath,
-            startTime: Math.round(startTime * 1000), // Convert back to milliseconds
-            endTime: Math.round(startTime * 1000 + segmentDuration),
-            duration: Math.round(segmentDuration),
+            segmentPath: segment.path,
+            startTime: Math.round(segment.start_time),
+            endTime: Math.round(segment.end_time),
+            duration: Math.round(segment.duration),
             status: "available",
             assignedTo: null,
             transcribedBy: null,
@@ -138,17 +128,13 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
           
           // Update audio file with number of segments processed so far
           await storage.updateAudioFile(audioFile.id, {
-            segments: i + 1,
+            segments: index + 1,
           });
-        } catch (segmentError) {
-          console.error(`Error processing segment ${i+1}: ${segmentError}`);
-          // Update the audio file with the specific segment error
-          await storage.updateAudioFile(audioFile.id, {
-            status: "error",
-            error: `Error processing segment ${i+1}: ${segmentError instanceof Error ? segmentError.message : 'Unknown error'}`,
-          });
-          throw segmentError;
         }
+      } catch (vadError) {
+        console.error(`Error processing with VAD: ${vadError}`);
+        throw vadError;
+      }
       }
       
       // Mark file as processed
