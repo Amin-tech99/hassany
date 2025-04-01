@@ -135,13 +135,10 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
         console.error(`Error processing with VAD: ${vadError}`);
         throw vadError;
       }
-      }
       
       // Mark file as processed
       await storage.updateAudioFileStatus(audioFile.id, "processed");
-      processingFiles.delete(audioFile.id);
-      
-      console.log(`Successfully processed audio file ${audioFile.id} into ${numberOfSegments} segments.`);
+      console.log(`Successfully processed audio file ${audioFile.id} into ${vadResponse.segments.length} segments.`);
     } catch (durationError) {
       console.error(`Error getting audio duration: ${durationError}`);
       throw durationError;
@@ -154,7 +151,7 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
       status: "error",
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    
+  } finally {
     processingFiles.delete(audioFile.id);
   }
 }
