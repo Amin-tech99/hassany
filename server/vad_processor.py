@@ -108,15 +108,3 @@ if __name__ == '__main__':
     
     result = process_audio(args.input, args.output)
     print(result)
-
-if __name__ == '__main__':
-    if len(sys.argv) != 3:
-        print(json.dumps({
-            'status': 'error',
-            'error': 'Required arguments: input_path output_dir'
-        }))
-        sys.exit(1)
-
-    input_path = sys.argv[1]
-    output_dir = sys.argv[2]
-    print(process_audio(input_path, output_dir))
