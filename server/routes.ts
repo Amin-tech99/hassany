@@ -1933,6 +1933,11 @@ The JSON files contain the transcribed text and timing information.
       if (!res.headersSent) {
         res.status(500).json({ error: error.message || 'Internal server error during Whisper training export' });
       }
+    } finally {
+      // Ensure the response is ended
+      if (!res.headersSent) {
+        res.end();
+      }
     }
   });
 
