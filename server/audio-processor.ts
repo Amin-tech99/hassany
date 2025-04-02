@@ -78,7 +78,9 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
       }
       
       // Run the Python VAD processor
-      const vadCommand = `python3 "${path.join(process.cwd(), 'server', 'vad_processor.py')}" "${audioFile.originalPath}" "${fileSegmentsDir}"`;      
+      const pythonCheck = await execAsync('python3 --version || python --version');
+        console.log('Python version:', pythonCheck.stdout);
+        const vadCommand = `python3 "${path.join(process.cwd(), 'server', 'vad_processor.py')}" "${audioFile.originalPath}" "${fileSegmentsDir}"`;      
       console.log(`Running VAD processor: ${vadCommand}`);
       
       try {
