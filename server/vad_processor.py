@@ -2,7 +2,12 @@ import torch
 import torchaudio
 import sys
 import json
+import soundfile
+import librosa
 from pathlib import Path
+
+import argparse
+import sys
 
 def process_audio(input_path, output_dir):
     try:
@@ -19,7 +24,9 @@ def process_audio(input_path, output_dir):
         try:
             vad_model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad',
                                             model='silero_vad',
-                                            force_reload=False)
+                                            force_reload=False,
+                                            trust_repo=True,
+                                            verbose=False)
             print("Successfully loaded VAD model from online repository")
         except Exception as model_error:
             print(f"Error loading model from online repository: {str(model_error)}")
@@ -32,10 +39,22 @@ def process_audio(input_path, output_dir):
                 print("Successfully loaded VAD model from local cache")
             except Exception as fallback_error:
                 raise Exception(f"Failed to load VAD model (both online and cache): {str(fallback_error)}")
-        (get_speech_timestamps, save_audio, read_audio, _, _) = utils
+        (get_speech_timestamps, _, _, _, _) = utils
 
-        # Read the audio file
-        audio = read_audio(input_path, sampling_rate=16000)
+        # Read audio with torchaudio
+        try:
+            # Load audio with torchaudio
+            waveform, original_sr = torchaudio.load(input_path)
+            audio = waveform.numpy()[0]
+        except Exception as e:
+            raise RuntimeError(f"Failed to read audio file: {str(e)}")
+        
+        # Resample to 16kHz if needed
+        if original_sr != 16000:
+            audio = librosa.resample(audio, orig_sr=original_sr, target_sr=16000)
+        
+        # Convert to torch tensor
+        audio = torch.from_numpy(audio).float()
 
         # Get speech timestamps
         speech_timestamps = get_speech_timestamps(audio, vad_model, sampling_rate=16000)
@@ -47,9 +66,13 @@ def process_audio(input_path, output_dir):
             segment_path = Path(output_dir) / f"segment_{i+1}.wav"
             
             # Save the audio segment
-            save_audio(str(segment_path),
-                      audio[ts['start']:ts['end']],
-                      sampling_rate=16000)
+            segment_audio = audio[ts['start']:ts['end']].numpy()
+            soundfile.write(
+                str(segment_path),
+                segment_audio,
+                16000,
+                subtype='PCM_16'
+            )
             
             # Calculate duration in milliseconds
             duration = (ts['end'] - ts['start']) / 16  # Convert samples to ms
@@ -76,6 +99,15 @@ def process_audio(input_path, output_dir):
             'status': 'error',
             'error': error_message
         })
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='VAD Processor')
+    parser.add_argument('--input', required=True, help='Input audio file path')
+    parser.add_argument('--output', required=True, help='Output directory path')
+    args = parser.parse_args()
+    
+    result = process_audio(args.input, args.output)
+    print(result)
 
 if __name__ == '__main__':
     if len(sys.argv) != 3:
