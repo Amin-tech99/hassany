@@ -4,10 +4,10 @@ import sys
 import json
 import soundfile
 import librosa
+import os
 from pathlib import Path
 
 import argparse
-import sys
 
 def process_audio(input_path, output_dir):
     try:

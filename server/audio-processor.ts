@@ -79,20 +79,54 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
       
       // Run the Python VAD processor
       // Try multiple Python commands to find the available one
-      let pythonCommand = 'python3';
+      let pythonCommand = '';
+      
+      // Check for python3 command
       try {
         const { stdout } = await execAsync('python3 --version');
         console.log('Python3 version:', stdout.trim());
+        pythonCommand = 'python3';
       } catch (pythonError) {
-        console.log('Python3 not found, trying python...');
+        console.log('Python3 not found, error:', pythonError instanceof Error ? pythonError.message : 'Unknown error');
+      }
+      
+      // If python3 failed, try python command
+      if (!pythonCommand) {
         try {
           const { stdout } = await execAsync('python --version');
           console.log('Python version:', stdout.trim());
           pythonCommand = 'python';
         } catch (pythonError2) {
-          console.error('Neither python3 nor python is available');
-          throw new Error('Python is not installed or not in PATH. Please install Python 3.x');
+          console.log('Python not found, error:', pythonError2 instanceof Error ? pythonError2.message : 'Unknown error');
         }
+      }
+      
+      // If both failed, try specific paths
+      if (!pythonCommand) {
+        const possiblePaths = [
+          '/usr/bin/python3.10',
+          '/usr/bin/python3',
+          '/usr/bin/python',
+          '/usr/local/bin/python3',
+          '/usr/local/bin/python'
+        ];
+        
+        for (const path of possiblePaths) {
+          try {
+            const { stdout } = await execAsync(`${path} --version`);
+            console.log(`Python at ${path} version:`, stdout.trim());
+            pythonCommand = path;
+            break;
+          } catch (pathError) {
+            console.log(`Python not found at ${path}`);
+          }
+        }
+      }
+      
+      // If all attempts failed
+      if (!pythonCommand) {
+        console.error('No Python installation found after trying multiple paths');
+        throw new Error('Python is not installed or not in PATH. Please install Python 3.x');
       }
       
       // Check Python environment
@@ -105,10 +139,18 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
       
       // Check if torch is available
       try {
-        const { stdout: torchOutput } = await execAsync(`${pythonCommand} -c "import torch; print('Torch version:', torch.__version__); print('Torch hub dir:', torch.hub.get_dir())"`); 
+        const { stdout: torchOutput } = await execAsync(`${pythonCommand} -c "import torch; print('Torch version:', torch.__version__); print('Torch hub dir:', torch.hub.get_dir()); print('Torch available:', torch.cuda.is_available() if hasattr(torch, 'cuda') else 'N/A')"`);
         console.log('Torch environment:', torchOutput);
       } catch (torchError) {
-        console.warn('Could not check Torch environment:', torchError);
+        console.warn('Could not check Torch environment:', torchError instanceof Error ? torchError.message : 'Unknown error');
+        
+        // Try to get more detailed error information
+        try {
+          const { stdout: pipList } = await execAsync(`${pythonCommand} -m pip list | grep -E 'torch|audio'`);
+          console.log('Installed torch packages:', pipList.trim());
+        } catch (pipError) {
+          console.warn('Could not check pip packages:', pipError instanceof Error ? pipError.message : 'Unknown error');
+        }
       }
       
       const vadCommand = `${pythonCommand} "${path.join(process.cwd(), 'server', 'vad_processor.py')}" "${audioFile.originalPath}" "${fileSegmentsDir}"`;      
