@@ -71,6 +71,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
   setupAuth(app);
 
+  // Healthcheck route
+  app.get("/", (req, res) => {
+    res.status(200).json({ status: "ok" });
+  });
+
   // User routes
   app.get("/api/users", isAuthenticated, isAdmin, async (req, res) => {
     try {
