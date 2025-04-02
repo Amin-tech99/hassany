@@ -71,13 +71,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes
   setupAuth(app);
 
-  // Healthcheck route
-  app.get("/", (req, res) => {
-    res.status(200).json({
-      status: "ok",
-      timestamp: new Date().toISOString(),
-      service: "hassaniya-transcriber"
-    });
+  // Healthcheck route with enhanced error handling
+  app.get("/", async (req, res) => {
+    try {
+      // Verify essential directories exist
+      await ensureDirectoriesExist();
+      
+      // Return detailed health status
+      res.status(200).json({
+        status: "ok",
+        timestamp: new Date().toISOString(),
+        service: "hassaniya-transcriber",
+        version: process.env.npm_package_version || "1.0.0",
+        uptime: process.uptime()
   });
 
   // User routes
