@@ -19,11 +19,15 @@ RUN npm run build
 # Production stage
 FROM node:20-slim
 
-# Install Python and pip
+# Install Python, pip and required system dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+    python3-dev \
+    build-essential \
+    ffmpeg \
+    && rm -rf /var/lib/apt/lists/* \
+    && ln -s /usr/bin/python3 /usr/bin/python
 
 # Set working directory
 WORKDIR /app
@@ -34,7 +38,8 @@ COPY server/requirements.txt ./
 
 # Install production dependencies
 RUN npm ci --only=production
-RUN pip3 install -r requirements.txt
+ENV PYTHONPATH=/app
+RUN python3 -m pip install --no-cache-dir -r requirements.txt
 
 # Copy built files from builder stage
 COPY --from=builder /app/dist ./dist
