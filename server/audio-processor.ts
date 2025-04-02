@@ -78,9 +78,24 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
       }
       
       // Run the Python VAD processor
-      const pythonCheck = await execAsync('python3 --version || python --version');
-        console.log('Python version:', pythonCheck.stdout);
-        const vadCommand = `python3 "${path.join(process.cwd(), 'server', 'vad_processor.py')}" "${audioFile.originalPath}" "${fileSegmentsDir}"`;      
+      // Try multiple Python commands to find the available one
+      let pythonCommand = 'python3';
+      try {
+        const { stdout } = await execAsync('python3 --version');
+        console.log('Python3 version:', stdout.trim());
+      } catch (pythonError) {
+        console.log('Python3 not found, trying python...');
+        try {
+          const { stdout } = await execAsync('python --version');
+          console.log('Python version:', stdout.trim());
+          pythonCommand = 'python';
+        } catch (pythonError2) {
+          console.error('Neither python3 nor python is available');
+          throw new Error('Python is not installed or not in PATH. Please install Python 3.x');
+        }
+      }
+      
+      const vadCommand = `${pythonCommand} "${path.join(process.cwd(), 'server', 'vad_processor.py')}" "${audioFile.originalPath}" "${fileSegmentsDir}"`;      
       console.log(`Running VAD processor: ${vadCommand}`);
       
       try {

@@ -100,11 +100,26 @@ def process_audio(input_path, output_dir):
             'error': error_message
         })
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='VAD Processor')
-    parser.add_argument('--input', required=True, help='Input audio file path')
-    parser.add_argument('--output', required=True, help='Output directory path')
-    args = parser.parse_args()
+if __name__ == "__main__":
+    import sys
     
-    result = process_audio(args.input, args.output)
+    # Print debug information
+    print(f"Python version: {sys.version}", file=sys.stderr)
+    print(f"Arguments received: {sys.argv}", file=sys.stderr)
+    
+    if len(sys.argv) != 3:
+        print(json.dumps({
+            'status': 'error',
+            'error': f'Expected 2 arguments, got {len(sys.argv)-1}. Usage: python vad_processor.py <input_file> <output_dir>'
+        }))
+        sys.exit(1)
+    
+    input_path = sys.argv[1]
+    output_dir = sys.argv[2]
+    
+    # Print the paths for debugging
+    print(f"Input path: {input_path}", file=sys.stderr)
+    print(f"Output directory: {output_dir}", file=sys.stderr)
+    
+    result = process_audio(input_path, output_dir)
     print(result)
