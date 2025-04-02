@@ -73,7 +73,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Healthcheck route
   app.get("/", (req, res) => {
-    res.status(200).json({ status: "ok" });
+    res.status(200).json({
+      status: "ok",
+      timestamp: new Date().toISOString(),
+      service: "hassaniya-transcriber"
+    });
   });
 
   // User routes
