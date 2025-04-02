@@ -21,12 +21,21 @@ def process_audio(input_path, output_dir):
 
         # Load the VAD model with caching enabled
         print("Loading VAD model...")
+        print(f"Python executable: {sys.executable}")
+        print(f"Torch version: {torch.__version__}")
+        print(f"Torch hub cache location: {torch.hub.get_dir()}")
+        
         try:
+            # Create cache directory if it doesn't exist
+            cache_dir = torch.hub.get_dir()
+            os.makedirs(cache_dir, exist_ok=True)
+            print(f"Verified cache directory exists: {cache_dir}")
+            
             vad_model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad',
                                             model='silero_vad',
                                             force_reload=False,
                                             trust_repo=True,
-                                            verbose=False)
+                                            verbose=True)
             print("Successfully loaded VAD model from online repository")
         except Exception as model_error:
             print(f"Error loading model from online repository: {str(model_error)}")
@@ -38,7 +47,35 @@ def process_audio(input_path, output_dir):
                                                 trust_repo=True)
                 print("Successfully loaded VAD model from local cache")
             except Exception as fallback_error:
-                raise Exception(f"Failed to load VAD model (both online and cache): {str(fallback_error)}")
+                print(f"Failed to load VAD model (both online and cache): {str(fallback_error)}")
+                print("Attempting emergency fallback to direct download...")
+                try:
+                    import urllib.request
+                    import zipfile
+                    import tempfile
+                    
+                    # Create model directory
+                    model_dir = os.path.join(torch.hub.get_dir(), 'snakers4_silero-vad_master')
+                    os.makedirs(model_dir, exist_ok=True)
+                    
+                    # Download the model files directly
+                    print("Downloading model files directly...")
+                    with tempfile.NamedTemporaryFile(suffix='.zip') as temp_zip:
+                        urllib.request.urlretrieve(
+                            'https://github.com/snakers4/silero-vad/archive/refs/heads/master.zip', 
+                            temp_zip.name
+                        )
+                        with zipfile.ZipFile(temp_zip.name, 'r') as zip_ref:
+                            zip_ref.extractall(torch.hub.get_dir())
+                    
+                    print(f"Downloaded and extracted model files to {model_dir}")
+                    vad_model, utils = torch.hub.load(repo_or_dir='snakers4/silero-vad',
+                                                    model='silero_vad',
+                                                    force_reload=True,
+                                                    trust_repo=True)
+                    print("Successfully loaded VAD model after direct download")
+                except Exception as emergency_error:
+                    raise Exception(f"All attempts to load VAD model failed: {str(emergency_error)}")
         (get_speech_timestamps, _, _, _, _) = utils
 
         # Read audio with torchaudio

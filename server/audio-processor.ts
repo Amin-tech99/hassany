@@ -95,6 +95,22 @@ export async function processAudio(audioFile: AudioFile, storage: IStorage): Pro
         }
       }
       
+      // Check Python environment
+      try {
+        const { stdout: envOutput } = await execAsync(`${pythonCommand} -c "import sys; print('Python path:', sys.executable); print('Python version:', sys.version); print('Path:', sys.path)"`); 
+        console.log('Python environment:', envOutput);
+      } catch (envError) {
+        console.warn('Could not check Python environment:', envError);
+      }
+      
+      // Check if torch is available
+      try {
+        const { stdout: torchOutput } = await execAsync(`${pythonCommand} -c "import torch; print('Torch version:', torch.__version__); print('Torch hub dir:', torch.hub.get_dir())"`); 
+        console.log('Torch environment:', torchOutput);
+      } catch (torchError) {
+        console.warn('Could not check Torch environment:', torchError);
+      }
+      
       const vadCommand = `${pythonCommand} "${path.join(process.cwd(), 'server', 'vad_processor.py')}" "${audioFile.originalPath}" "${fileSegmentsDir}"`;      
       console.log(`Running VAD processor: ${vadCommand}`);
       
